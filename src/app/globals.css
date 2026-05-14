@@ -1,26 +1,312 @@
 @import "tailwindcss";
 
+/* ============================================================
+   Nexus Education — Design Tokens
+   White-label via CSS variables (override em runtime por tenant).
+   ============================================================ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand (default = Alfenas-MG; sobrescrito pelo tenant resolver) */
+  --primary: #1E40AF;
+  --primary-hover: #1D3A9E;
+  --primary-fg: #ffffff;
+  --primary-soft: #EBF0FB;
+  --primary-border: #C7D3F0;
+  --secondary: #F59E0B;
+  --secondary-fg: #1F1300;
+  --secondary-soft: #FEF6E4;
+
+  /* Neutrals (warm gray) */
+  --neutral-50:  #FAFAF9;
+  --neutral-100: #F4F4F2;
+  --neutral-200: #E8E8E4;
+  --neutral-300: #D6D6D0;
+  --neutral-400: #A8A8A0;
+  --neutral-500: #71716A;
+  --neutral-600: #54544D;
+  --neutral-700: #3D3D38;
+  --neutral-800: #272724;
+  --neutral-900: #1A1A18;
+  --neutral-950: #0F0F0E;
+
+  /* Surface */
+  --canvas: #FAFAF9;
+  --surface: #FFFFFF;
+  --surface-2: #F7F7F5;
+  --surface-3: #F1F1EE;
+  --border: #E8E8E4;
+  --border-strong: #D6D6D0;
+  --text: #1A1A18;
+  --text-muted: #54544D;
+  --text-subtle: #71716A;
+  --text-faint: #A8A8A0;
+
+  /* Semantic */
+  --success: #15803D;
+  --success-soft: #E8F3EC;
+  --success-fg: #166534;
+  --warning: #B45309;
+  --warning-soft: #FDF1DD;
+  --warning-fg: #92400E;
+  --danger: #B91C1C;
+  --danger-soft: #FBE9E9;
+  --danger-fg: #991B1B;
+  --info: #1E40AF;
+  --info-soft: #EBF0FB;
+
+  /* Proficiência pedagógica */
+  --prof-advanced: #15803D;
+  --prof-adequate: #1E40AF;
+  --prof-basic: #B45309;
+  --prof-insufficient: #B91C1C;
+  --prof-advanced-soft: #E8F3EC;
+  --prof-adequate-soft: #EBF0FB;
+  --prof-basic-soft: #FDF1DD;
+  --prof-insufficient-soft: #FBE9E9;
+
+  /* Radii */
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+  --r-2xl: 20px;
+  --r-full: 9999px;
+
+  /* Shadows — institucional, sutil */
+  --shadow-xs: 0 1px 2px rgba(15, 15, 14, 0.04);
+  --shadow-sm: 0 1px 2px rgba(15, 15, 14, 0.05), 0 1px 1px rgba(15, 15, 14, 0.03);
+  --shadow-md: 0 2px 4px rgba(15, 15, 14, 0.05), 0 4px 12px rgba(15, 15, 14, 0.04);
+  --shadow-lg: 0 4px 8px rgba(15, 15, 14, 0.06), 0 12px 32px rgba(15, 15, 14, 0.08);
+  --shadow-xl: 0 8px 16px rgba(15, 15, 14, 0.08), 0 24px 60px rgba(15, 15, 14, 0.10);
+
+  /* Spacing — base 4px */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Typography — famílias carregadas via next/font (var injetada no <html>) */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-serif: var(--font-source-serif), Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-a11y-dyslexia: var(--font-atkinson), var(--font-inter), sans-serif;
+
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-base: 14px;
+  --fs-md: 15px;
+  --fs-lg: 16px;
+  --fs-xl: 18px;
+  --fs-2xl: 22px;
+  --fs-3xl: 28px;
+  --fs-4xl: 36px;
+  --fs-5xl: 48px;
+
+  /* Densidade (controlada via data-density no <html>) */
+  --density-row: 44px;
+  --density-pad: 12px;
+
+  /* Chart palette */
+  --c1: var(--primary);
+  --c2: var(--secondary);
+  --c3: #15803D;
+  --c4: #B45309;
+  --c5: #7C3AED;
+  --c6: #0891B2;
 }
 
+/* Dark mode */
+[data-theme="dark"] {
+  --canvas: #0B0B0A;
+  --surface: #141413;
+  --surface-2: #1C1C1A;
+  --surface-3: #242421;
+  --border: #2A2A26;
+  --border-strong: #3A3A35;
+  --text: #F4F4F2;
+  --text-muted: #B8B8AE;
+  --text-subtle: #8A8A82;
+  --text-faint: #54544D;
+
+  --primary-soft: #1A2547;
+  --primary-border: #2A3A6E;
+  --secondary-soft: #2E2310;
+
+  --success-soft: #0F2A1A;
+  --warning-soft: #2A1E0A;
+  --danger-soft: #2E1313;
+  --info-soft: #1A2547;
+
+  --prof-advanced-soft: #0F2A1A;
+  --prof-adequate-soft: #1A2547;
+  --prof-basic-soft: #2A1E0A;
+  --prof-insufficient-soft: #2E1313;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.4), 0 8px 20px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.5), 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+
+/* Densidade */
+[data-density="high"] {
+  --density-row: 36px;
+  --density-pad: 8px;
+}
+[data-density="medium"] {
+  --density-row: 44px;
+  --density-pad: 12px;
+}
+[data-density="low"] {
+  --density-row: 56px;
+  --density-pad: 16px;
+}
+
+/* Acessibilidade (escopo: aluno) */
+[data-a11y="dyslexia"] {
+  --font-sans: var(--font-a11y-dyslexia);
+  letter-spacing: 0.01em;
+}
+[data-a11y="dyslexia"] p,
+[data-a11y="dyslexia"] li {
+  line-height: 1.7;
+}
+
+[data-a11y="easy-read"] {
+  --fs-base: 17px;
+  --fs-md: 18px;
+}
+[data-a11y="easy-read"] p {
+  line-height: 1.7;
+}
+
+[data-a11y="tdah"] *,
+[data-a11y="tdah"] *::before,
+[data-a11y="tdah"] *::after {
+  animation-duration: 0s !important;
+  transition-duration: 0s !important;
+}
+
+/* Expor tokens ao Tailwind v4 */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-subtle: var(--text-subtle);
+  --color-text-faint: var(--text-faint);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-fg: var(--primary-fg);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-border: var(--primary-border);
+  --color-secondary: var(--secondary);
+  --color-secondary-fg: var(--secondary-fg);
+  --color-secondary-soft: var(--secondary-soft);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-fg: var(--success-fg);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-fg: var(--warning-fg);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-fg: var(--danger-fg);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --color-prof-advanced: var(--prof-advanced);
+  --color-prof-adequate: var(--prof-adequate);
+  --color-prof-basic: var(--prof-basic);
+  --color-prof-insufficient: var(--prof-insufficient);
+
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
+
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-xl: var(--r-xl);
+  --radius-2xl: var(--r-2xl);
+  --radius-full: var(--r-full);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Reset + base */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01", "ss03";
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  color: var(--text);
+  background: var(--canvas);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+/* Foco acessível */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Scrollbar sutil */
+.scroll-thin::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 6px;
+  border: 2px solid var(--surface);
+}
+.scroll-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--text-faint);
+}
+
+/* Animações */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
