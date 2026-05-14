@@ -1,19 +1,22 @@
-# Nexus Governamental
+# Nexus Education
 
-Orquestrador de IA para o setor público — uma plataforma para gerenciar, conectar e auditar múltiplos modelos de IA e agentes em fluxos de trabalho governamentais.
+Plataforma de IA pedagógica multi-tenant para redes municipais de educação no Brasil.
 
-## Visão
+- **Tutora IA por prefeitura** (white-label): cada cidade tem sua tutora com nome, voz e identidade visual próprios.
+- **Canal principal: WhatsApp Business** + PWA mobile-first para alunos.
+- **Copiloto para professores**: gera plano de aula, corrige redação, cria provas — em minutos.
+- **Dashboards para secretarias**: drill-down rede → escola → turma → aluno, indicadores Nexus + IDEB.
+- **LGPD-first**: trilha de auditoria completa, protocolo socioemocional (SRE-1) auditável.
 
-- **Orquestração multi-modelo**: integra diferentes provedores de IA (Anthropic, OpenAI, modelos open-source) em uma única interface.
-- **Foco no setor público**: acessibilidade (WCAG), rastreabilidade de decisões, conformidade com LGPD.
-- **Fluxos auditáveis**: cada execução fica registrada para revisão e prestação de contas.
+> Veja [`docs/ROADMAP.md`](./docs/ROADMAP.md) para o plano completo: arquitetura, fases, equipe e custos.
 
 ## Stack
 
 - [Next.js 16](https://nextjs.org/) (App Router) + React 19
-- TypeScript
-- Tailwind CSS v4
-- ESLint
+- TypeScript + Tailwind CSS v4
+- Multi-tenant via subdomínio + tokens CSS por tenant
+- Postgres (Neon) + Drizzle ORM + pgvector para RAG
+- AI SDK (Vercel) com switch de provedor: Claude Haiku 4.5 · Gemini 2.5 Flash · GPT-4o mini
 
 ## Como rodar localmente
 
@@ -33,12 +36,16 @@ Abra [http://localhost:3000](http://localhost:3000).
 | `npm run start` | Roda o build de produção             |
 | `npm run lint`  | Roda o linter                        |
 
-## Estrutura
+## Estrutura (atual)
 
 ```
 src/
   app/
-    layout.tsx   # Layout raiz
-    page.tsx     # Landing page
-    globals.css  # Estilos globais
+    layout.tsx
+    page.tsx       # landing institucional (provisória)
+    globals.css
+docs/
+  ROADMAP.md       # plano completo do produto
 ```
+
+A estrutura final (com as 4 camadas: aluno, professor, secretaria, admin) está descrita no roadmap.

@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Nexus Governamental",
+  title: "Nexus Education",
   description:
-    "Orquestrador de IA para o setor público — gestão unificada de modelos, agentes e fluxos.",
+    "Plataforma de IA pedagógica para redes municipais de educação. Tutor IA por prefeitura, copiloto para professores, dashboards estratégicos para secretarias.",
 };
 
 export default function RootLayout({
