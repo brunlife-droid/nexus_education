@@ -3,29 +3,39 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Avatar } from "@/components/ui";
+import { PrefLogo } from "@/components/tenant";
+import type { Tenant } from "@/lib/tenants";
 import { cn } from "@/lib/cn";
 import { NexusMark } from "./nexus-mark";
 import { LAYERS, type LayerConfig, type LayerKey } from "./nav";
 
 interface SidebarProps {
   layer: LayerKey;
+  tenant: Tenant;
 }
 
-export function Sidebar({ layer }: SidebarProps) {
+export function Sidebar({ layer, tenant }: SidebarProps) {
   const config = LAYERS[layer];
   const pathname = usePathname();
+  const isAdmin = layer === "admin";
 
   return (
     <aside className="bg-surface border-border flex h-full flex-col overflow-hidden border-r">
       {/* Header */}
       <div className="border-border flex items-center gap-2.5 border-b px-3.5 py-3.5">
-        <NexusMark size={28} />
-        <div className="leading-tight">
-          <div className="text-[13px] font-semibold">Nexus Admin</div>
-          <div className="text-text-faint text-[10.5px]">
-            {layer === "admin" ? "Console interno" : config.label}
-          </div>
-        </div>
+        {isAdmin ? (
+          <>
+            <NexusMark size={28} />
+            <div className="leading-tight">
+              <div className="text-[13px] font-semibold">Nexus Admin</div>
+              <div className="text-text-faint text-[10.5px]">
+                Console interno
+              </div>
+            </div>
+          </>
+        ) : (
+          <PrefLogo tenant={tenant} />
+        )}
       </div>
 
       {/* Scrollable nav */}
