@@ -8,6 +8,7 @@ import {
 import "./globals.css";
 import { getCurrentTenant } from "@/lib/tenants/server";
 import { TenantStyle, TenantSwitcher } from "@/components/tenant";
+import { AuthSessionProvider } from "@/components/auth/session-provider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -59,8 +60,10 @@ export default async function RootLayout({
         <TenantStyle tenant={tenant} />
       </head>
       <body className="min-h-full flex flex-col">
-        {children}
-        <TenantSwitcher current={tenant.id} />
+        <AuthSessionProvider>
+          {children}
+          <TenantSwitcher current={tenant.id} />
+        </AuthSessionProvider>
       </body>
     </html>
   );
