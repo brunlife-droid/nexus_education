@@ -30,17 +30,25 @@ interface ChatClientProps {
     tutorName: string;
   };
   initialMessages: Message[];
+  initialConversationId?: string | null;
 }
 
 function formatTime(d: Date): string {
   return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
-export function ChatClient({ tenant, initialMessages }: ChatClientProps) {
+export function ChatClient({
+  tenant,
+  initialMessages,
+  initialConversationId = null,
+}: ChatClientProps) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(
+    initialConversationId,
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const tutorInitial = tenant.tutorName[0];
@@ -100,6 +108,7 @@ export function ChatClient({ tenant, initialMessages }: ChatClientProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          conversationId,
           messages: history
             .filter((m) => !m.streaming)
             .map((m) => ({
@@ -128,7 +137,17 @@ export function ChatClient({ tenant, initialMessages }: ChatClientProps) {
           if (!line.startsWith("data: ")) continue;
           try {
             const chunk = JSON.parse(line.slice(6));
-            if (chunk.type === "text" && chunk.text) {
+            if (chunk.type === "meta" && chunk.conversationId) {
+              setConversationId((prev) => {
+                if (prev === chunk.conversationId) return prev;
+                if (typeof window !== "undefined") {
+                  const url = new URL(window.location.href);
+                  url.searchParams.set("id", chunk.conversationId);
+                  window.history.replaceState({}, "", url.toString());
+                }
+                return chunk.conversationId;
+              });
+            } else if (chunk.type === "text" && chunk.text) {
               accumulated += chunk.text;
               setMessages((prev) => {
                 const copy = [...prev];

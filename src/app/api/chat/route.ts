@@ -1,32 +1,96 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { stream } from "@/lib/llm";
 import { getCurrentTenant } from "@/lib/tenants/server";
+import { ensureDemoStudent } from "@/lib/db/seed-demo";
+import {
+  createConversation,
+  appendMessage,
+  touchConversation,
+  getConversationOwner,
+} from "@/lib/chat/persistence";
 
 /**
  * POST /api/chat
  *
- * Body: { messages: ChatMessage[] }
+ * Body: {
+ *   messages: ChatMessage[],
+ *   conversationId?: string  // se ausente, cria nova conversation
+ * }
  *
- * Retorna text/event-stream com o conteúdo gerado em chunks.
- * Quando não há ANTHROPIC_API_KEY, cai automaticamente no mock provider
- * (resposta plausível com latência simulada).
+ * Stream SSE com chunks { type: "text" | "done" | "error" | "meta" }.
+ * O chunk "meta" carrega { conversationId } pra o cliente atualizar a URL.
+ *
+ * Persistência é graceful: sem DATABASE_URL, o chat continua streamando
+ * mas não salva no DB.
  */
 
-export const runtime = "nodejs"; // node, não edge, por causa do AI SDK + drizzle (futuro)
+export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   const tenant = await getCurrentTenant();
   const body = (await request.json()) as {
     messages: { role: "user" | "assistant" | "system"; content: string }[];
+    conversationId?: string;
   };
 
   if (!Array.isArray(body.messages) || body.messages.length === 0) {
     return NextResponse.json({ error: "messages required" }, { status: 400 });
   }
 
+  const studentId = await ensureDemoStudent();
+
+  let conversationId: string | null = body.conversationId ?? null;
+  if (conversationId && studentId) {
+    const owner = await getConversationOwner({
+      tenantId: tenant.id,
+      conversationId,
+    });
+    if (!owner || owner.studentId !== studentId) {
+      conversationId = null;
+    }
+  }
+
+  const lastUserMessage = [...body.messages].reverse().find((m) => m.role === "user");
+
+  if (!conversationId && studentId && lastUserMessage) {
+    conversationId = await createConversation({
+      tenantId: tenant.id,
+      studentId,
+      title: lastUserMessage.content,
+    });
+  }
+
+  if (conversationId && lastUserMessage) {
+    await appendMessage({
+      tenantId: tenant.id,
+      conversationId,
+      role: "user",
+      content: lastUserMessage.content,
+    });
+  }
+
+  const persistedConversationId = conversationId;
+
   const encoder = new TextEncoder();
   const sseStream = new ReadableStream({
     async start(controller) {
+      const send = (obj: unknown) => {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
+      };
+
+      if (persistedConversationId) {
+        send({ type: "meta", conversationId: persistedConversationId });
+      }
+
+      let accumulated = "";
+      let assistantMeta: {
+        model?: string;
+        promptVersion?: string;
+        inputTokens?: number;
+        outputTokens?: number;
+        latencyMs?: number;
+      } = {};
+
       try {
         for await (const chunk of stream({
           capability: "chat_student",
@@ -37,16 +101,40 @@ export async function POST(request: NextRequest) {
             prefeitura: tenant.short,
           },
         })) {
-          const payload = JSON.stringify(chunk);
-          controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
+          if (chunk.type === "text" && chunk.text) {
+            accumulated += chunk.text;
+          }
+          if (chunk.type === "done" && chunk.meta) {
+            assistantMeta = {
+              model: chunk.meta.model,
+              promptVersion: chunk.meta.promptVersion,
+              inputTokens: chunk.meta.inputTokens,
+              outputTokens: chunk.meta.outputTokens,
+              latencyMs: chunk.meta.latencyMs,
+            };
+          }
+          send(chunk);
           if (chunk.type === "done" || chunk.type === "error") break;
         }
+
+        if (persistedConversationId && accumulated) {
+          await appendMessage({
+            tenantId: tenant.id,
+            conversationId: persistedConversationId,
+            role: "assistant",
+            content: accumulated,
+            ...assistantMeta,
+          });
+          await touchConversation({
+            tenantId: tenant.id,
+            conversationId: persistedConversationId,
+          });
+        }
       } catch (err) {
-        const errPayload = JSON.stringify({
+        send({
           type: "error",
           error: err instanceof Error ? err.message : String(err),
         });
-        controller.enqueue(encoder.encode(`data: ${errPayload}\n\n`));
       } finally {
         controller.close();
       }

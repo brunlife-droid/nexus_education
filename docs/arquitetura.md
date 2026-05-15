@@ -32,11 +32,12 @@ src/
     api/              # API routes
   components/         # UI compartilhada
   lib/
-    db/               # Drizzle schema + cliente
+    db/               # Drizzle schema + cliente + seed-demo
+    chat/             # persistência de conversations/messages
     llm/              # gateway + providers + capabilities + prompts
     auth/             # NextAuth config
     storage/          # abstração Vercel Blob
-    tenant/           # middleware + helpers de tenant
+    tenants/          # middleware helpers + config
   middleware.ts       # ⚠️ em Next 16 será migrado para `proxy.ts`
 drizzle/migrations/   # SQL versionado
 docs/                 # ROADMAP, contexto, arquitetura, histórico
@@ -60,6 +61,14 @@ docs/                 # ROADMAP, contexto, arquitetura, histórico
 
 ### Auditoria
 - `audit_log` e `consent_log` são tabelas obrigatórias. Toda ação sensível vira log (acesso a dado de aluno, envio de mensagem, alerta SRE).
+
+### Persistência de chat (Aluno)
+- `src/lib/chat/persistence.ts` é a única porta de entrada pra `conversations`/`messages`. Componentes nunca tocam Drizzle direto.
+- Todas as funções são **graceful**: sem `DATABASE_URL` retornam `null`/`[]` sem propagar erro — o chat continua streamando em modo efêmero.
+- IDs gerados com `crypto.randomUUID()` no app (nunca no DB). Convenção do schema (`text PK`).
+- A API `/api/chat` envia chunk SSE `{ type: "meta", conversationId }` no início do stream pra o cliente atualizar URL via `history.replaceState` — refresh preserva a conversa.
+- Ownership de conversation validado por `studentId` antes de retomar (`?id=`) ou continuar via API (proteção contra IDOR).
+- Demo aluno (`u-joao`) é hardcoded por enquanto. Quando login real estiver pronto, trocar `ensureDemoStudent()` por lookup de `student` via `userId` da sessão.
 
 ## Convenções de código
 

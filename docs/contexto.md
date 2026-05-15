@@ -16,16 +16,17 @@
 - Telas mockadas: Aluno (A1-A6), Professor (P1-P8), Secretaria (S1-S9), Admin (N2-N9)
 - Multi-tenant foundation (middleware + tabela `tenants` + tokens CSS por tenant)
 - Deploy Vercel forçado em `gru1` (São Paulo)
+- **Loop do Aluno completo**: chat A2 persiste no DB (conversations + messages), histórico A3 lê do Postgres com agrupamento por data, `?id=` reabre conversa antiga. Graceful sem `DATABASE_URL` (cai pra modo efêmero).
 
 ## O que está mockado / não funcional ainda
 
-- Chat do Aluno (A2) ainda não persiste conversa no DB
-- Histórico A3 vem de mock data, não do Postgres
 - White-label dinâmico carregado por tenant — só 1 tenant hardcoded
 - RLS escrita no SQL mas não validada com testes
-- Login real por papel (Aluno/Prof/Secretaria/Admin) — só demo
+- Login real por papel (Aluno/Prof/Secretaria/Admin) — só demo (auth não enforced em `/aluno/*`)
+- Aluno demo `u-joao` é hardcoded — todo chat é atribuído a ele independente de quem está logado
 - WhatsApp, OCR, áudio, PDF, RAG: nada começado
 - `audit_log`, `consent_log`: schema existe, sem writes
+- Busca/filtros do histórico A3 são UI estática (não filtram nada ainda)
 
 ## Próximos passos sugeridos (em discussão)
 

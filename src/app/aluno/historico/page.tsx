@@ -2,35 +2,90 @@ import Link from "next/link";
 import { MessageSquare, Search } from "lucide-react";
 import { Chip } from "@/components/ui";
 import { getCurrentTenant } from "@/lib/tenants/server";
-
-const GROUPS = [
-  {
-    title: "Hoje",
-    items: [
-      { area: "Matemática", tema: "Frações de uma pizza", hora: "15:32", msgs: 14 },
-    ],
-  },
-  {
-    title: "Ontem",
-    items: [
-      { area: "Língua Portuguesa", tema: "Coesão referencial em redação", hora: "19:08", msgs: 22 },
-      { area: "Ciências", tema: "Diferença entre célula animal e vegetal", hora: "14:51", msgs: 8 },
-    ],
-  },
-  {
-    title: "Esta semana",
-    items: [
-      { area: "História", tema: "Brasil Império — Dom Pedro II", hora: "Seg, 09:14", msgs: 17 },
-      { area: "Matemática", tema: "Equação do 1º grau — questão da prova", hora: "Dom, 20:40", msgs: 31 },
-      { area: "Geografia", tema: "Climas do Brasil — clima tropical", hora: "Sáb, 17:22", msgs: 11 },
-    ],
-  },
-];
+import { ensureDemoStudent } from "@/lib/db/seed-demo";
+import { listConversations, type ConversationSummary } from "@/lib/chat/persistence";
 
 const FILTERS = ["Tudo", "Matemática", "Português", "Ciências", "História", "Geografia"];
 
+interface BucketItem {
+  id: string;
+  area: string;
+  tema: string;
+  hora: string;
+}
+
+interface Bucket {
+  title: string;
+  items: BucketItem[];
+}
+
+function startOfDay(d: Date): Date {
+  const copy = new Date(d);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function bucketLabel(updatedAt: Date, today: Date): string {
+  const day = startOfDay(updatedAt);
+  const todayStart = startOfDay(today);
+  const diffDays = Math.floor(
+    (todayStart.getTime() - day.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  if (diffDays === 0) return "Hoje";
+  if (diffDays === 1) return "Ontem";
+  if (diffDays < 7) return "Esta semana";
+  if (diffDays < 30) return "Este mês";
+  return "Anteriores";
+}
+
+function formatHora(updatedAt: Date, today: Date): string {
+  const day = startOfDay(updatedAt);
+  const todayStart = startOfDay(today);
+  const diffDays = Math.floor(
+    (todayStart.getTime() - day.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  if (diffDays <= 1) {
+    return updatedAt.toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+  return updatedAt.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+  });
+}
+
+const BUCKET_ORDER = ["Hoje", "Ontem", "Esta semana", "Este mês", "Anteriores"];
+
+function groupConversations(rows: ConversationSummary[]): Bucket[] {
+  const today = new Date();
+  const groups = new Map<string, BucketItem[]>();
+  for (const row of rows) {
+    const label = bucketLabel(row.updatedAt, today);
+    const list = groups.get(label) ?? [];
+    list.push({
+      id: row.id,
+      area: row.area ?? "Conversa",
+      tema: row.title ?? "(sem título)",
+      hora: formatHora(row.updatedAt, today),
+    });
+    groups.set(label, list);
+  }
+  return BUCKET_ORDER.filter((label) => groups.has(label)).map((label) => ({
+    title: label,
+    items: groups.get(label)!,
+  }));
+}
+
 export default async function HistoricoPage() {
   const tenant = await getCurrentTenant();
+  const studentId = await ensureDemoStudent();
+  const rows = studentId
+    ? await listConversations({ tenantId: tenant.id, studentId })
+    : [];
+  const buckets = groupConversations(rows);
+
   return (
     <div className="scroll-thin h-full overflow-y-auto">
       <div className="mx-auto max-w-4xl px-8 py-10">
@@ -42,7 +97,6 @@ export default async function HistoricoPage() {
           </p>
         </header>
 
-        {/* Busca */}
         <div className="relative mt-6">
           <Search
             size={16}
@@ -54,7 +108,6 @@ export default async function HistoricoPage() {
           />
         </div>
 
-        {/* Filtros */}
         <div className="mt-4 flex flex-wrap gap-2">
           {FILTERS.map((f, i) => (
             <Chip
@@ -75,46 +128,79 @@ export default async function HistoricoPage() {
           ))}
         </div>
 
-        {/* Lista */}
-        <div className="mt-8 flex flex-col gap-8">
-          {GROUPS.map((g) => (
-            <section key={g.title}>
-              <div className="text-text-faint text-[11.5px] font-semibold tracking-widest uppercase">
-                {g.title}
-              </div>
-              <div className="mt-3 flex flex-col">
-                {g.items.map((it, i) => (
-                  <Link
-                    key={i}
-                    href="/aluno/chat"
-                    className="hover:bg-surface-2 border-border group flex items-start gap-4 border-b py-4 transition-colors"
-                  >
-                    <div
-                      className="flex size-10 shrink-0 items-center justify-center rounded-lg"
-                      style={{
-                        background: tenant.primarySoft,
-                        color: tenant.primary,
-                      }}
+        {buckets.length === 0 ? (
+          <EmptyState tenantPrimary={tenant.primary} tenantSoft={tenant.primarySoft} />
+        ) : (
+          <div className="mt-8 flex flex-col gap-8">
+            {buckets.map((g) => (
+              <section key={g.title}>
+                <div className="text-text-faint text-[11.5px] font-semibold tracking-widest uppercase">
+                  {g.title}
+                </div>
+                <div className="mt-3 flex flex-col">
+                  {g.items.map((it) => (
+                    <Link
+                      key={it.id}
+                      href={`/aluno/chat?id=${it.id}`}
+                      className="hover:bg-surface-2 border-border group flex items-start gap-4 border-b py-4 transition-colors"
                     >
-                      <MessageSquare size={16} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-text-muted text-xs">{it.area}</span>
-                        <span className="text-text-faint text-xs">{it.hora}</span>
+                      <div
+                        className="flex size-10 shrink-0 items-center justify-center rounded-lg"
+                        style={{
+                          background: tenant.primarySoft,
+                          color: tenant.primary,
+                        }}
+                      >
+                        <MessageSquare size={16} />
                       </div>
-                      <div className="text-text mt-1 text-[15px]">{it.tema}</div>
-                      <div className="text-text-faint mt-1 text-xs">
-                        {it.msgs} mensagens
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-text-muted text-xs">{it.area}</span>
+                          <span className="text-text-faint text-xs">{it.hora}</span>
+                        </div>
+                        <div className="text-text mt-1 text-[15px]">{it.tema}</div>
                       </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+function EmptyState({
+  tenantPrimary,
+  tenantSoft,
+}: {
+  tenantPrimary: string;
+  tenantSoft: string;
+}) {
+  return (
+    <div className="border-border mt-10 flex flex-col items-center gap-3 rounded-2xl border border-dashed py-16 text-center">
+      <div
+        className="flex size-12 items-center justify-center rounded-xl"
+        style={{ background: tenantSoft, color: tenantPrimary }}
+      >
+        <MessageSquare size={20} />
+      </div>
+      <div className="text-text mt-1 text-[15px] font-medium">
+        Você ainda não conversou com a sua tutora
+      </div>
+      <p className="text-text-muted max-w-sm text-[13.5px]">
+        Quando você começar a tirar dúvida pelo chat, suas conversas aparecem
+        aqui — agrupadas por dia.
+      </p>
+      <Link
+        href="/aluno/chat"
+        className="mt-2 rounded-lg px-4 py-2 text-[13.5px] font-medium transition-opacity hover:opacity-90"
+        style={{ background: tenantPrimary, color: "white" }}
+      >
+        Começar a estudar
+      </Link>
     </div>
   );
 }
