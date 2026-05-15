@@ -19,6 +19,7 @@ import type {
 } from "./types";
 import { routeFor } from "./routes";
 import { STUDENT_TUTOR_PROMPT, renderPrompt } from "./prompts/student-tutor";
+import { LESSON_PLAN_PROMPT } from "./prompts/lesson-plan";
 import { mockComplete, mockStream } from "./providers/mock";
 import { openrouterComplete, openrouterStream } from "./providers/openrouter";
 
@@ -32,16 +33,27 @@ function shouldUseMock(provider: string): boolean {
 function injectSystemPrompt(
   req: ChatCompletionRequest,
 ): ChatCompletionRequest {
-  if (req.capability !== "chat_student") return req;
   const hasSystem = req.messages.some((m) => m.role === "system");
   if (hasSystem) return req;
-  const rendered = renderPrompt(STUDENT_TUTOR_PROMPT.content, {
-    tutor_name: "Profe Mari",
-    prefeitura: "Alfenas",
-    aluno_context: "(contexto vazio na Fase 0 — sem DB)",
-    historico_resumido: "(sem histórico)",
-    ...req.systemContext,
-  });
+
+  let rendered: string | null = null;
+  if (req.capability === "chat_student") {
+    rendered = renderPrompt(STUDENT_TUTOR_PROMPT.content, {
+      tutor_name: "Profe Mari",
+      prefeitura: "Alfenas",
+      aluno_context: "(contexto vazio na Fase 0 — sem DB)",
+      historico_resumido: "(sem histórico)",
+      ...req.systemContext,
+    });
+  } else if (req.capability === "plan_generation") {
+    rendered = renderPrompt(LESSON_PLAN_PROMPT.content, {
+      prefeitura: "Alfenas",
+      tenant_uf: "MG",
+      ...req.systemContext,
+    });
+  }
+
+  if (!rendered) return req;
   return {
     ...req,
     messages: [{ role: "system", content: rendered }, ...req.messages],

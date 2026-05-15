@@ -198,3 +198,182 @@ export function scoreToProficiency(
   if (score >= 0.4) return "basica";
   return "insuficiente";
 }
+
+export interface HeatmapCell {
+  habilityCode: string;
+  score: number;
+}
+
+export interface HeatmapRow {
+  studentId: string;
+  studentName: string;
+  cells: HeatmapCell[];
+}
+
+export interface ClassHeatmap {
+  habilities: Array<{ code: string; area: string; description: string }>;
+  rows: HeatmapRow[];
+}
+
+export async function loadClassHeatmap(input: {
+  tenantId: string;
+  classId: string;
+}): Promise<ClassHeatmap> {
+  if (!dbAvailable()) return { habilities: [], rows: [] };
+  try {
+    const d = db();
+
+    const habsRows = await d
+      .selectDistinct({
+        code: studentProficiency.habilityCode,
+      })
+      .from(studentProficiency)
+      .innerJoin(students, eq(students.id, studentProficiency.studentId))
+      .where(
+        and(
+          eq(students.tenantId, input.tenantId),
+          eq(students.classId, input.classId),
+        ),
+      );
+
+    if (habsRows.length === 0) return { habilities: [], rows: [] };
+
+    const habCodes = habsRows.map((h) => h.code);
+
+    const { habilities: habilitiesTable } = await import("@/lib/db/schema");
+    const habInfo = await d
+      .select({
+        code: habilitiesTable.code,
+        area: habilitiesTable.area,
+        description: habilitiesTable.description,
+      })
+      .from(habilitiesTable)
+      .where(inArray(habilitiesTable.code, habCodes));
+
+    const studentsRows = await d
+      .select({ id: students.id, name: students.fullName })
+      .from(students)
+      .where(
+        and(
+          eq(students.tenantId, input.tenantId),
+          eq(students.classId, input.classId),
+        ),
+      );
+
+    const profRows = await d
+      .select({
+        studentId: studentProficiency.studentId,
+        habilityCode: studentProficiency.habilityCode,
+        score: studentProficiency.score,
+      })
+      .from(studentProficiency)
+      .innerJoin(students, eq(students.id, studentProficiency.studentId))
+      .where(
+        and(
+          eq(students.tenantId, input.tenantId),
+          eq(students.classId, input.classId),
+        ),
+      );
+
+    const byStudent = new Map<string, Map<string, number>>();
+    for (const r of profRows) {
+      let m = byStudent.get(r.studentId);
+      if (!m) {
+        m = new Map();
+        byStudent.set(r.studentId, m);
+      }
+      m.set(r.habilityCode, r.score);
+    }
+
+    const rows: HeatmapRow[] = studentsRows.map((s) => ({
+      studentId: s.id,
+      studentName: s.name,
+      cells: habCodes.map((h) => ({
+        habilityCode: h,
+        score: byStudent.get(s.id)?.get(h) ?? 0,
+      })),
+    }));
+
+    return { habilities: habInfo, rows };
+  } catch (err) {
+    console.error("[teacher/queries] loadClassHeatmap failed:", err);
+    return { habilities: [], rows: [] };
+  }
+}
+
+export interface RosterEntry {
+  studentId: string;
+  fullName: string;
+  initials: string;
+  avgScore: number;
+  proficiency: "avancada" | "adequada" | "basica" | "insuficiente";
+  conversationCount: number;
+  lastActivity: Date | null;
+}
+
+export async function loadClassRoster(input: {
+  tenantId: string;
+  classId: string;
+}): Promise<RosterEntry[]> {
+  if (!dbAvailable()) return [];
+  try {
+    const d = db();
+
+    const baseRows = await d
+      .select({
+        id: students.id,
+        fullName: students.fullName,
+        avgScore: sql<number>`coalesce(avg(${studentProficiency.score}), 0)`,
+      })
+      .from(students)
+      .leftJoin(
+        studentProficiency,
+        eq(studentProficiency.studentId, students.id),
+      )
+      .where(
+        and(
+          eq(students.tenantId, input.tenantId),
+          eq(students.classId, input.classId),
+        ),
+      )
+      .groupBy(students.id, students.fullName);
+
+    const activityRows = await d
+      .select({
+        studentId: conversations.studentId,
+        count: count(),
+        lastActivity: sql<Date>`max(${conversations.updatedAt})`,
+      })
+      .from(conversations)
+      .innerJoin(students, eq(students.id, conversations.studentId))
+      .where(
+        and(
+          eq(conversations.tenantId, input.tenantId),
+          eq(students.classId, input.classId),
+        ),
+      )
+      .groupBy(conversations.studentId);
+
+    const activityMap = new Map(
+      activityRows.map((r) => [r.studentId, r] as const),
+    );
+
+    return baseRows
+      .map((r) => {
+        const a = activityMap.get(r.id);
+        return {
+          studentId: r.id,
+          fullName: r.fullName,
+          initials: initialsOf(r.fullName),
+          avgScore: r.avgScore,
+          proficiency: scoreToProficiency(r.avgScore),
+          conversationCount: a?.count ?? 0,
+          lastActivity: a?.lastActivity ?? null,
+        };
+      })
+      .sort((a, b) => b.avgScore - a.avgScore);
+  } catch (err) {
+    console.error("[teacher/queries] loadClassRoster failed:", err);
+    return [];
+  }
+}
