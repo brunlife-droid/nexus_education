@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui";
+import { getLayerHomePath } from "@/lib/auth/session-paths";
 
 interface LoginFormProps {
   callbackUrl?: string;
@@ -27,13 +28,16 @@ export function LoginForm({ callbackUrl, error: initialError }: LoginFormProps) 
         email,
         password,
         redirect: false,
-        callbackUrl,
       });
       if (result?.error) {
         setError("E-mail ou senha incorretos.");
         return;
       }
-      router.push(callbackUrl ?? "/");
+      const session = await getSession();
+      const target =
+        callbackUrl ??
+        (session?.user?.role ? getLayerHomePath(session.user.role) : "/");
+      router.push(target);
       router.refresh();
     } catch {
       setError("Algo deu errado. Tente novamente.");

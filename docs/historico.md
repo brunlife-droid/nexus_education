@@ -6,6 +6,40 @@
 
 ---
 
+## 2026-05-15 — Tenants vêm do DB (com fallback in-code)
+
+- **`getCurrentTenant()` agora carrega do Postgres** via `loadTenantFromDb(id)`, cacheado por request com React `cache()`.
+- **Seed idempotente** `ensureTenantsSeeded()` em `src/lib/tenants/db.ts` insere as 3 prefeituras (`alfenas`, `pousoalegre`, `varginha`) no primeiro carregamento de qualquer request — `onConflictDoNothing`, executa só uma vez por instância.
+- **Fallback gracioso**: sem `DATABASE_URL` ou row inexistente, devolve a config in-code (`TENANTS` em `config.ts`) com o mesmo shape. Nada quebra em dev sem DB.
+- **Campos derivados** (`population`, `students`, `teachers`, `schools`) continuam vindo do in-code overlay até termos COUNT real — DB hoje não armazena agregados.
+- `resolveTenantId()` extraído pra função privada — separação clara entre "qual tenant é?" (headers/cookies) e "carrega o tenant" (DB+fallback).
+- Build/lint limpos.
+
+**Por quê**: era pré-requisito pro Wizard de Onboarding (N3) — adicionar prefeitura agora vai ser um INSERT, não um deploy de código. Também alinha o app à arquitetura final (DB como source of truth) sem virar refator de big-bang.
+
+**Ainda pendente** (próximas iterações):
+- RLS enforcement real (políticas existem no SQL mas conexão atual bypassa).
+- Contagens reais de students/teachers/schools via COUNT em vez de in-code.
+
+---
+
+## 2026-05-15 — Auth real por papel: layouts protegidos, ownership real, redirect por role
+
+- **Layouts protegidos**: `/aluno`, `/professor`, `/secretaria`, `/admin` agora usam `requireRole(...)` no Server Component — não logado vira redirect pra `/entrar?callbackUrl=<rota>`, papel errado vira redirect pra própria home do papel.
+- **`/api/chat` exige sessão**: retorna 401 se não logado, 403 se não-aluno. `studentId` agora vem de `resolveStudentId(userId, tenantId)` em vez de `ensureDemoStudent()` hardcoded.
+- **Ownership real** das conversations: validação por `studentId` derivado da sessão. Antes era teatro — qualquer um abrindo `/aluno/chat` era tratado como u-joao.
+- **Login redireciona por papel**: form chama `getSession()` pós-signIn, lê `role`, vai pra `getLayerHomePath(role)`. Demo aluno → `/aluno/chat`, professor → `/professor`, etc.
+- **`x-pathname` header** adicionado no middleware pra `requireAuth` montar `callbackUrl` correto sem ler `request.url`.
+- **`src/lib/auth/session-paths.ts`** separado de `session.ts` pra ser client-safe (form usa esse import; o server-only `session.ts` importa `headers` e `redirect`).
+- **`src/lib/db/student-resolver.ts`**: helper único pra resolver `studentId` da sessão — para `u-joao` chama `ensureDemoStudent` (compat retro), para outros faz lookup em `students` por `userId+tenantId`. Sem `DATABASE_URL` ou sem match: retorna `null` (chat continua streamando efêmero).
+- Build/lint limpos.
+
+**Por quê**: a ownership do chat era teatro e qualquer um logado ou não era tratado como `u-joao`. Sem login real não dá pra validar permissões, testar 2º aluno, nem montar Professor/Secretaria de verdade. Esta camada destrava as próximas (multi-tenant real, onboarding).
+
+**Lembrete pra produção**: `NEXTAUTH_SECRET` precisa ser configurado na Vercel (hoje cai no `"dev-only-secret-replace-me"`). Sem isso, tokens JWT são adivinháveis.
+
+---
+
 ## 2026-05-15 — Loop do Aluno fechado: chat persiste e histórico vem do DB
 
 - **API `/api/chat`** agora cria `conversation`, persiste mensagem do user antes do streaming, persiste mensagem do assistente (com model/tokens/latência) ao terminar e bumpa `updatedAt`. Aceita `conversationId` opcional para continuar conversa existente; valida ownership por `studentId`.

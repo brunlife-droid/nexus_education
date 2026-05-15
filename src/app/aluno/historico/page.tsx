@@ -2,7 +2,8 @@ import Link from "next/link";
 import { MessageSquare, Search } from "lucide-react";
 import { Chip } from "@/components/ui";
 import { getCurrentTenant } from "@/lib/tenants/server";
-import { ensureDemoStudent } from "@/lib/db/seed-demo";
+import { requireRole } from "@/lib/auth/session";
+import { resolveStudentId } from "@/lib/db/student-resolver";
 import { listConversations, type ConversationSummary } from "@/lib/chat/persistence";
 
 const FILTERS = ["Tudo", "Matemática", "Português", "Ciências", "História", "Geografia"];
@@ -79,8 +80,12 @@ function groupConversations(rows: ConversationSummary[]): Bucket[] {
 }
 
 export default async function HistoricoPage() {
+  const user = await requireRole("aluno", "responsavel");
   const tenant = await getCurrentTenant();
-  const studentId = await ensureDemoStudent();
+  const studentId = await resolveStudentId({
+    userId: user.id,
+    tenantId: tenant.id,
+  });
   const rows = studentId
     ? await listConversations({ tenantId: tenant.id, studentId })
     : [];

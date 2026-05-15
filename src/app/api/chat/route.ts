@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { stream } from "@/lib/llm";
 import { getCurrentTenant } from "@/lib/tenants/server";
-import { ensureDemoStudent } from "@/lib/db/seed-demo";
+import { auth } from "@/lib/auth";
+import { resolveStudentId } from "@/lib/db/student-resolver";
 import {
   createConversation,
   appendMessage,
@@ -27,6 +28,14 @@ import {
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  if (session.user.role !== "aluno" && session.user.role !== "responsavel") {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+
   const tenant = await getCurrentTenant();
   const body = (await request.json()) as {
     messages: { role: "user" | "assistant" | "system"; content: string }[];
@@ -37,7 +46,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "messages required" }, { status: 400 });
   }
 
-  const studentId = await ensureDemoStudent();
+  const studentId = await resolveStudentId({
+    userId: session.user.id,
+    tenantId: tenant.id,
+  });
 
   let conversationId: string | null = body.conversationId ?? null;
   if (conversationId && studentId) {

@@ -1,7 +1,8 @@
 import { ChatClient } from "@/components/phone/chat-client";
 import { getCurrentTenant } from "@/lib/tenants/server";
 import { CHAT_INICIAL } from "@/lib/mocks";
-import { ensureDemoStudent } from "@/lib/db/seed-demo";
+import { requireRole } from "@/lib/auth/session";
+import { resolveStudentId } from "@/lib/db/student-resolver";
 import { loadMessages, getConversationOwner } from "@/lib/chat/persistence";
 
 interface PageProps {
@@ -13,6 +14,7 @@ function formatTime(d: Date): string {
 }
 
 export default async function ChatPage({ searchParams }: PageProps) {
+  const user = await requireRole("aluno", "responsavel");
   const tenant = await getCurrentTenant();
   const { id: requestedId } = await searchParams;
 
@@ -24,7 +26,10 @@ export default async function ChatPage({ searchParams }: PageProps) {
   }> = [];
 
   if (requestedId) {
-    const studentId = await ensureDemoStudent();
+    const studentId = await resolveStudentId({
+      userId: user.id,
+      tenantId: tenant.id,
+    });
     if (studentId) {
       const owner = await getConversationOwner({
         tenantId: tenant.id,

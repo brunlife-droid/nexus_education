@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Sidebar, Topbar } from "@/components/shell";
 import { getCurrentTenant } from "@/lib/tenants/server";
+import { requireRole } from "@/lib/auth/session";
 
 export const metadata: Metadata = {
   title: "Professor · Nexus Education",
@@ -12,6 +13,7 @@ export default async function ProfessorLayout({
 }: {
   children: React.ReactNode;
 }) {
+  await requireRole("professor", "coordenador", "diretor", "orientador");
   const tenant = await getCurrentTenant();
   return (
     <div className="bg-canvas grid h-screen grid-cols-[260px_1fr] overflow-hidden">
