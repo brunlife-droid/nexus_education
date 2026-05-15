@@ -41,6 +41,7 @@ export function middleware(request: NextRequest) {
       headers: new Headers({
         ...Object.fromEntries(request.headers),
         "x-tenant-id": resolved,
+        "x-pathname": url.pathname,
       }),
     },
   });
