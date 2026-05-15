@@ -19,12 +19,16 @@
 - **Loop do Aluno completo**: chat A2 persiste no DB (conversations + messages), histórico A3 lê do Postgres com agrupamento por data, `?id=` reabre conversa antiga. Graceful sem `DATABASE_URL` (cai pra modo efêmero).
 - **Auth real enforced**: `/aluno`, `/professor`, `/secretaria`, `/admin` exigem sessão via `requireRole(...)` no layout. `/api/chat` retorna 401/403 sem sessão. Login redireciona por papel pra `getLayerHomePath(role)`. Ownership de conversation validada por `studentId` da sessão (não mais teatro).
 - **Tenants do DB**: `getCurrentTenant()` lê do Postgres com seed idempotente das 3 prefeituras. Fallback in-code se não houver `DATABASE_URL`. White-label dinâmico funciona (`?tenant=pousoalegre` muda cores/nome do tutor).
+- **Seed da rede (Alfenas 7º A)**: 3 demo non-students (Ricardo prof, Cláudia sec, Bruno admin) + memberships, 12 alunos no 7º A (João linkado ao user), 9 habilidades BNCC, proficiência por aluno×habilidade.
+- **Dashboard P1 do Professor real**: KPIs (engajados na semana, em risco por proficiência <0.45, total na turma) e destaques (top 3 por avg proficiency) vêm do DB. Alertas, próximas aulas e ferramentas LLM ainda mockados.
 
 ## O que está mockado / não funcional ainda
 
 - Contagens (`students`, `teachers`, `schools`) do Tenant ainda vêm do in-code overlay — DB não tem agregados
 - RLS escrita no SQL mas conexão atual bypassa (queries rodam como owner; políticas existem mas não enforçam)
-- Só `u-joao` tem seed automático de student/school/class. Outros demo users (professor/secretaria/admin) logam mas não têm registros relacionais correspondentes — Professor não consegue listar "minha turma" porque a turma só existe pro João.
+- P2 (copiloto plano de aula), P3 (correção redação), P4 (gerar prova): só telas, sem LLM real plugado
+- P5 (dashboard turma), P6 (perfil aluno), P7 (diário), P8 (biblioteca): mockados
+- Telas Secretaria S1-S9 e Admin N2-N9: mockadas
 - WhatsApp, OCR, áudio, PDF, RAG: nada começado
 - `audit_log`, `consent_log`: schema existe, sem writes
 - Busca/filtros do histórico A3 são UI estática (não filtram nada ainda)

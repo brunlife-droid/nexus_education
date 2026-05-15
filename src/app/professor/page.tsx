@@ -8,14 +8,15 @@ import {
 } from "lucide-react";
 import { Badge, Button, Card, ProfBadge } from "@/components/ui";
 import { PageHeader, PageBody } from "@/components/layout";
-import { ALERTAS_PROF, ALUNOS_7A } from "@/lib/mocks";
-
-const KPIS = [
-  { label: "Alunos engajados", value: "22 / 28", sub: "esta semana" },
-  { label: "Redações pendentes", value: "12", sub: "há 3 dias paradas" },
-  { label: "Alunos em risco", value: "2", sub: "Gabriel, Davi" },
-  { label: "Próximas aulas", value: "3", sub: "hoje" },
-];
+import { ALERTAS_PROF } from "@/lib/mocks";
+import { requireRole } from "@/lib/auth/session";
+import { getCurrentTenant } from "@/lib/tenants/server";
+import {
+  loadTeacherContext,
+  loadDashboardKpis,
+  loadTopStudents,
+  scoreToProficiency,
+} from "@/lib/teacher/queries";
 
 const SHORTCUTS = [
   {
@@ -26,7 +27,7 @@ const SHORTCUTS = [
   },
   {
     title: "Corrigir redações",
-    desc: "12 redações do 7º A aguardando.",
+    desc: "Redações aguardando devolutiva.",
     href: "/professor/correcao",
     icon: AlertTriangle,
   },
@@ -38,14 +39,63 @@ const SHORTCUTS = [
   },
 ];
 
-export default function ProfessorDashboard() {
-  const topProf = ALUNOS_7A.filter((a) => a.prof === "avancada").slice(0, 3);
+export default async function ProfessorDashboard() {
+  const user = await requireRole(
+    "professor",
+    "coordenador",
+    "diretor",
+    "orientador",
+  );
+  const tenant = await getCurrentTenant();
+
+  const ctx = await loadTeacherContext({
+    userId: user.id,
+    tenantId: tenant.id,
+  });
+  const [kpis, top] = await Promise.all([
+    loadDashboardKpis({ tenantId: tenant.id, classIds: ctx.classIds }),
+    loadTopStudents({ tenantId: tenant.id, classIds: ctx.classIds, limit: 3 }),
+  ]);
+
+  const firstName = user.name?.split(" ")[0] ?? "Professor";
+  const subtitle =
+    ctx.classes.length > 0
+      ? ctx.classes
+          .map((c) => `${c.name} (${c.schoolName})`)
+          .join(" · ")
+      : "Sem turma atribuída ainda";
+
+  const KPIS = [
+    {
+      label: "Alunos engajados",
+      value:
+        kpis.studentsTotal > 0
+          ? `${kpis.engagedThisWeek} / ${kpis.studentsTotal}`
+          : "—",
+      sub: "esta semana",
+    },
+    {
+      label: "Alunos em risco",
+      value: kpis.atRisk.count.toString(),
+      sub: kpis.atRisk.names.join(", ") || "ninguém em risco",
+    },
+    {
+      label: "Total na turma",
+      value: kpis.studentsTotal.toString(),
+      sub: ctx.classes[0]?.name ?? "—",
+    },
+    {
+      label: "Próximas aulas",
+      value: "3",
+      sub: "hoje (mock)",
+    },
+  ];
 
   return (
     <>
       <PageHeader
-        title="Olá, Ricardo."
-        subtitle="Matemática · 7º A, 7º B, 8º A · 2º bimestre"
+        title={`Olá, ${firstName}.`}
+        subtitle={subtitle}
         actions={
           <>
             <Button variant="secondary">Hoje</Button>
@@ -54,7 +104,6 @@ export default function ProfessorDashboard() {
         }
       />
       <PageBody>
-        {/* KPIs */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {KPIS.map((k) => (
             <Card key={k.label} className="p-4">
@@ -64,13 +113,14 @@ export default function ProfessorDashboard() {
               <div className="mt-1.5 text-[28px] leading-none font-semibold tracking-tight">
                 {k.value}
               </div>
-              <div className="text-text-muted mt-1 text-xs">{k.sub}</div>
+              <div className="text-text-muted mt-1 truncate text-xs">
+                {k.sub}
+              </div>
             </Card>
           ))}
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-          {/* Shortcuts */}
           <div className="flex flex-col gap-3">
             <div className="text-text-faint text-[11.5px] font-semibold tracking-wider uppercase">
               Atalhos pedagógicos
@@ -94,10 +144,12 @@ export default function ProfessorDashboard() {
               })}
             </div>
 
-            {/* Alertas */}
             <div className="mt-2">
               <div className="text-text-faint text-[11.5px] font-semibold tracking-wider uppercase">
                 Alertas pedagógicos
+                <span className="text-text-faint ml-2 normal-case tracking-normal">
+                  (ainda mockados)
+                </span>
               </div>
               <Card className="mt-2 p-0">
                 {ALERTAS_PROF.map((a, i) => {
@@ -159,27 +211,33 @@ export default function ProfessorDashboard() {
             </div>
           </div>
 
-          {/* Sidebar: destaques de turma */}
           <div className="flex flex-col gap-3">
             <div className="text-text-faint text-[11.5px] font-semibold tracking-wider uppercase">
               Destaques da turma
             </div>
             <Card className="p-4">
-              <div className="text-sm font-semibold">7º A · Mat.</div>
+              <div className="text-sm font-semibold">
+                {ctx.classes[0]?.name ?? "—"} · {tenant.short}
+              </div>
               <div className="text-text-muted mt-0.5 text-xs">
-                28 alunos · proficiência média adequada
+                {kpis.studentsTotal} alunos · top 3 por proficiência
               </div>
               <div className="mt-3 flex flex-col gap-2">
-                {topProf.map((al) => (
+                {top.length === 0 && (
+                  <div className="text-text-faint text-xs">
+                    Ainda sem dados de proficiência.
+                  </div>
+                )}
+                {top.map((s) => (
                   <div
-                    key={al.id}
+                    key={s.id}
                     className="flex items-center gap-2.5 text-sm"
                   >
                     <div className="bg-primary-soft text-primary flex size-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold">
-                      {al.foto}
+                      {s.initials}
                     </div>
-                    <span className="flex-1 truncate">{al.nome}</span>
-                    <ProfBadge value={al.prof} />
+                    <span className="flex-1 truncate">{s.name}</span>
+                    <ProfBadge value={scoreToProficiency(s.avgScore)} />
                   </div>
                 ))}
               </div>
@@ -193,13 +251,12 @@ export default function ProfessorDashboard() {
 
             <Card className="bg-primary-soft border-primary-border p-4">
               <div className="text-primary text-[11.5px] font-semibold tracking-wider uppercase">
-                Fase 0
+                Estado das telas
               </div>
               <p className="text-primary mt-1 text-sm leading-relaxed">
-                Dashboard P1 — dados mockados. As funcionalidades de geração
-                de plano (P2), correção (P3) e geração de prova (P4) ainda são
-                placeholders. A integração real com IA vem após conectarmos
-                Anthropic + Neon.
+                KPIs e destaques saem do DB real. Alertas, próximas aulas e
+                ferramentas (plano, correção, prova) ainda são placeholders —
+                próximas sessões.
               </p>
             </Card>
           </div>
