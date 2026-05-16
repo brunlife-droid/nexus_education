@@ -31,6 +31,7 @@ Consequência: o professor já consegue gerar prova real em produção e os prin
 - `/api/material/upload` resolve `tenantId` no servidor, via sessão/contexto, em vez de confiar em payload do cliente.
 - Seed da rede agora atualiza memberships demo existentes por `userId + tenantId + role`, sem depender do índice composto, para garantir que Ricardo fique vinculado ao `7º A` mesmo quando a row antiga já existia sem `classId`.
 - `loadTeacherContext()` ganhou reparo/fallback específico para o professor demo Ricardo em Alfenas, evitando que a página `/professor/turma` fique bloqueada se o Neon estiver com membership antigo sem escopo.
+- Seed da rede também garante o user demo `u-joao` antes de inserir `students`, evitando falha de FK que deixava a turma sem alunos/habilidades em produção.
 
 Consequência: uploads passam a respeitar o store privado da Vercel e ficam mais alinhados com LGPD/material escolar sensível.
 

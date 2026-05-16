@@ -49,6 +49,14 @@ const DEMO_NON_STUDENTS = [
   },
 ];
 
+const DEMO_STUDENT_USERS = [
+  {
+    id: "u-joao",
+    email: "joao@alfenas.demo",
+    name: "João Pedro Silva",
+  },
+];
+
 let seeded = false;
 
 export async function ensureNetworkSeeded(): Promise<void> {
@@ -80,7 +88,7 @@ export async function ensureNetworkSeeded(): Promise<void> {
     await d
       .insert(users)
       .values(
-        DEMO_NON_STUDENTS.map((u) => ({
+        [...DEMO_NON_STUDENTS, ...DEMO_STUDENT_USERS].map((u) => ({
           id: u.id,
           email: u.email,
           name: u.name,
