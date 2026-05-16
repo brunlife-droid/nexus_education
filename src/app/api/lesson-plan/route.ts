@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
       capability: "plan_generation",
       messages: [{ role: "user", content: userMessage }],
       tenantId: tenant.id,
+      maxTokens: 1800,
       systemContext: {
         prefeitura: tenant.short,
         tenant_uf: tenant.uf,

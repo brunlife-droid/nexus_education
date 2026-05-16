@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
       capability: "essay_correction",
       messages: [{ role: "user", content: userMessage }],
       tenantId: tenant.id,
+      maxTokens: 1600,
       systemContext: {
         prefeitura: tenant.short,
         tenant_uf: tenant.uf,

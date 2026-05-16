@@ -17,6 +17,7 @@
 - O gateway agora propaga `promptVersion` nas chamadas `complete()`, permitindo rastrear qual prompt gerou cada artefato.
 - `/api/llm-health` passou a aceitar `?capability=` e `?format=sse` para smoke test controlado das capabilities de professor em produção.
 - `createBufferedSseResponse()` agora usa `NextResponse`, mantendo o contrato de linhas `data: ...` alinhado ao App Router em produção.
+- Endpoints de professor definem `maxTokens` explicitamente para evitar geração longa demais na função de produção.
 
 Consequência: o professor já consegue gerar prova real em produção e os principais artefatos LLM deixam rastro reaproveitável sem exigir uma nova migration antes da demo. Uma tabela dedicada de artefatos ainda é recomendada quando a biblioteca evoluir para edição, compartilhamento e versionamento completo.
 

@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       messages: [{ role: "user", content: userMessage }],
       tenantId: tenant.id,
       temperature: 0.4,
-      maxTokens: 4500,
+      maxTokens: 2200,
       systemContext: {
         prefeitura: tenant.short,
         tenant_uf: tenant.uf,
