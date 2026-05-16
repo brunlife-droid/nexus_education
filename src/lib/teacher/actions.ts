@@ -21,10 +21,12 @@ import {
   classFocusSkills,
   documents,
   habilities,
+  users,
 } from "@/lib/db/schema";
 import { auth } from "@/lib/auth";
 import { getCurrentTenant } from "@/lib/tenants/server";
 import { HABILIDADES_BNCC } from "@/lib/mocks";
+import type { NexusSessionUser } from "@/lib/auth/types";
 
 async function requirePedagogicalSession() {
   const session = await auth();
@@ -59,37 +61,48 @@ export async function setClassFocus(input: {
 }) {
   const user = await requirePedagogicalSession();
   const tenant = await getCurrentTenant();
-  await assertClassInTenant(input.classId, tenant.id);
 
   if (!process.env.DATABASE_URL) return { ok: true, applied: 0 };
 
-  // Substitui o conjunto inteiro de habilidades em foco (mais simples
-  // que diff e suficiente — a lista é curta).
-  await db()
-    .delete(classFocusSkills)
-    .where(
-      and(
-        eq(classFocusSkills.classId, input.classId),
-        eq(classFocusSkills.tenantId, tenant.id),
-      ),
-  );
+  try {
+    await assertClassInTenant(input.classId, tenant.id);
+    await ensureActionUser(user);
 
-  if (input.habilityCodes.length > 0) {
-    await ensureHabilities(input.habilityCodes);
+    // Substitui o conjunto inteiro de habilidades em foco (mais simples
+    // que diff e suficiente — a lista é curta).
     await db()
-      .insert(classFocusSkills)
-      .values(
-        input.habilityCodes.map((code) => ({
-          tenantId: tenant.id,
-          classId: input.classId,
-          habilityCode: code,
-          setBy: user.id,
-        })),
+      .delete(classFocusSkills)
+      .where(
+        and(
+          eq(classFocusSkills.classId, input.classId),
+          eq(classFocusSkills.tenantId, tenant.id),
+        ),
       );
-  }
 
-  revalidatePath("/professor/turma");
-  return { ok: true, applied: input.habilityCodes.length };
+    if (input.habilityCodes.length > 0) {
+      await ensureHabilities(input.habilityCodes);
+      await db()
+        .insert(classFocusSkills)
+        .values(
+          input.habilityCodes.map((code) => ({
+            tenantId: tenant.id,
+            classId: input.classId,
+            habilityCode: code,
+            setBy: user.id,
+          })),
+        );
+    }
+
+    revalidatePath("/professor/turma");
+    return { ok: true, applied: input.habilityCodes.length };
+  } catch (err) {
+    console.error("[teacher/actions] setClassFocus failed:", err);
+    return {
+      ok: false,
+      applied: 0,
+      error: "Não foi possível salvar o foco agora.",
+    };
+  }
 }
 
 export async function deleteClassMaterial(input: { documentId: string }) {
@@ -195,6 +208,18 @@ async function ensureHabilities(codes: string[]) {
         grade: "7",
       })),
     )
+    .onConflictDoNothing();
+}
+
+async function ensureActionUser(user: NexusSessionUser) {
+  await db()
+    .insert(users)
+    .values({
+      id: user.id,
+      email: user.email ?? null,
+      name: user.name ?? user.email ?? user.id,
+      image: user.image ?? null,
+    })
     .onConflictDoNothing();
 }
 

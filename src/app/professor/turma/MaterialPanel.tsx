@@ -72,6 +72,7 @@ export function MaterialPanel({
   const router = useRouter();
   const [selectedCodes, setSelectedCodes] = useState<string[]>(selected);
   const [saving, startSaving] = useTransition();
+  const [focusError, setFocusError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -86,7 +87,15 @@ export function MaterialPanel({
 
   function save() {
     startSaving(async () => {
-      await setClassFocus({ classId, habilityCodes: selectedCodes });
+      setFocusError(null);
+      const result = await setClassFocus({
+        classId,
+        habilityCodes: selectedCodes,
+      });
+      if (!result.ok) {
+        setFocusError(result.error ?? "Não foi possível salvar o foco agora.");
+        return;
+      }
       router.refresh();
     });
   }
@@ -169,6 +178,11 @@ export function MaterialPanel({
             </Button>
           )}
         </div>
+        {focusError && (
+          <div className="border-border bg-danger-soft text-danger-fg border-b px-6 py-2.5 text-xs">
+            {focusError}
+          </div>
+        )}
         <div className="max-h-[420px] overflow-y-auto p-4">
           {available.length === 0 ? (
             <p className="text-text-muted text-sm">

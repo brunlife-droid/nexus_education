@@ -34,6 +34,7 @@ Consequência: o professor já consegue gerar prova real em produção e os prin
 - Seed da rede também garante o user demo `u-joao` antes de inserir `students`, evitando falha de FK que deixava a turma sem alunos/habilidades em produção.
 - Queries da turma usam fallback demo de 12 alunos e 9 habilidades BNCC quando o DB retorna vazio para `class-demo-7a`, mantendo a validação de produção navegável enquanto o seed real é estabilizado.
 - `setClassFocus()` garante as habilidades BNCC conhecidas antes de inserir foco, para o clique funcionar mesmo quando a lista veio do fallback demo.
+- O painel de foco agora mostra erro controlado quando a persistência falha, em vez de derrubar a página com erro de Server Action.
 
 Consequência: uploads passam a respeitar o store privado da Vercel e ficam mais alinhados com LGPD/material escolar sensível.
 
