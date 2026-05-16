@@ -3,7 +3,6 @@ import { complete } from "@/lib/llm";
 import { auth } from "@/lib/auth";
 import { getCurrentTenant } from "@/lib/tenants/server";
 import { createBufferedSseResponse } from "@/lib/http/sse";
-import { recordTeacherArtifact } from "@/lib/teacher/artifacts";
 
 /**
  * POST /api/essay-correction
@@ -88,15 +87,6 @@ export async function POST(request: NextRequest) {
         essay_topic: topic,
       },
     });
-    const artifactId = await recordTeacherArtifact({
-      tenantId: tenant.id,
-      actorUserId: session.user.id,
-      kind: "essay_correction",
-      title: `${studentName} · ${topic}`,
-      request: { studentName, topic, essayLength: essay.length },
-      content: result.text,
-      result,
-    });
 
     return createBufferedSseResponse([
       { type: "text", text: result.text },
@@ -108,7 +98,6 @@ export async function POST(request: NextRequest) {
           inputTokens: result.inputTokens,
           outputTokens: result.outputTokens,
           latencyMs: result.latencyMs,
-          artifactId,
         },
       },
     ]);

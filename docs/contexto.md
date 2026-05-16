@@ -59,7 +59,7 @@
 - RLS escrita no SQL mas conexão atual bypassa (queries rodam como owner; políticas existem mas não enforçam)
 - P6 (perfil aluno) e P7 (diário): mockados
 - Biblioteca da rede ainda é majoritariamente mock, mas já sabe mostrar "Gerados por mim" quando houver artefatos LLM no `audit_log`
-- Persistência de planos/provas/correções ainda usa `audit_log` como trilha best-effort atrás de `TEACHER_ARTIFACTS_AUDIT_LOG=1`; falta tabela dedicada para editar, compartilhar, versionar e buscar artefatos
+- Persistência de planos/provas/correções tem helper preparado em `src/lib/teacher/artifacts.ts`, mas não fica no request path de geração em produção; falta tabela dedicada para editar, compartilhar, versionar e buscar artefatos
 - Telas Secretaria S2-S9 e Admin N2-N7/N9: mockadas (N8 e N8b agora reais)
 - IDEB gráfico e Indicadores Nexus na S1 seguem com dados do mock
 - WhatsApp, OCR, áudio: nada começado (PDF e RAG agora funcionais via /professor/turma)
