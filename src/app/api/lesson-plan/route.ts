@@ -3,6 +3,7 @@ import { complete } from "@/lib/llm";
 import { auth } from "@/lib/auth";
 import { getCurrentTenant } from "@/lib/tenants/server";
 import { createBufferedSseResponse } from "@/lib/http/sse";
+import { recordTeacherArtifact } from "@/lib/teacher/artifacts";
 
 /**
  * POST /api/lesson-plan
@@ -59,20 +60,6 @@ export async function POST(request: NextRequest) {
     ``,
     `Identifique a habilidade BNCC mais provável e siga a estrutura definida.`,
   ].join("\n");
-  const debug = request.nextUrl.searchParams.get("debug");
-
-  if (debug === "before-complete") {
-    return NextResponse.json({
-      ok: true,
-      stage: debug,
-      subject,
-      grade,
-      topic,
-      tenantId: tenant.id,
-      role: session.user.role,
-    });
-  }
-
   try {
     const result = await complete({
       capability: "plan_generation",
@@ -84,15 +71,15 @@ export async function POST(request: NextRequest) {
         tenant_uf: tenant.uf,
       },
     });
-    if (debug === "after-complete") {
-      return NextResponse.json({
-        ok: true,
-        stage: debug,
-        provider: result.provider,
-        model: result.model,
-        textPreview: result.text.slice(0, 200),
-      });
-    }
+    const artifactId = await recordTeacherArtifact({
+      tenantId: tenant.id,
+      actorUserId: session.user.id,
+      kind: "lesson_plan",
+      title: `${subject} · ${topic}`,
+      request: { subject, grade, topic, duration },
+      content: result.text,
+      result,
+    });
 
     return createBufferedSseResponse([
       { type: "text", text: result.text },
@@ -104,6 +91,7 @@ export async function POST(request: NextRequest) {
           inputTokens: result.inputTokens,
           outputTokens: result.outputTokens,
           latencyMs: result.latencyMs,
+          artifactId,
         },
       },
     ]);

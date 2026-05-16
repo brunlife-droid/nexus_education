@@ -46,9 +46,9 @@
 - **Dashboard P1 do Professor real**: KPIs (engajados na semana, em risco por proficiência <0.45, total na turma) e destaques (top 3 por avg proficiency) vêm do DB. Alertas, próximas aulas e ferramentas LLM ainda mockados.
 - **P5 Dashboard da Turma real**: heatmap students × habilidades BNCC + lista ordenada por proficiência + KPIs reais com empty states.
 - **S1 Dashboard da Secretaria real**: KPIs da rede inteira (total alunos, engajados 7d, profs/turmas/escolas, em risco, proficiência média) vêm do DB. IDEB e indicadores Nexus em baixo ainda mockados (gov data que não temos).
-- **P2 Copiloto LLM**: `/professor/copiloto` gera plano de aula via Claude Haiku 4.5/OpenRouter, fallback mock. Form (disciplina/série/tema/duração) → linhas `data: ...` → Markdown render com cursor blinking. Código de persistência best-effort em `audit_log` existe, mas writes ficam atrás de `TEACHER_ARTIFACTS_AUDIT_LOG=1`.
-- **P3 Correção de redação**: `/professor/correcao` analisa texto colado nas 5 competências ENEM (GPT-4o-mini via OpenRouter, fallback Haiku). Form com nome do aluno + tema + textarea + botão. Persistência best-effort usa a mesma flag de artefatos.
-- **P4 Gerador de prova real**: `/professor/provas` chama `/api/exam-generation` via capability `exam_generation`, gerando prova com matriz BNCC, versões e gabarito comentado. Permite copiar ou baixar `.md`; persistência best-effort usa a mesma flag de artefatos.
+- **P2 Copiloto LLM**: `/professor/copiloto` gera plano de aula via Claude Haiku 4.5/OpenRouter, fallback mock. Form (disciplina/série/tema/duração) → linhas `data: ...` → Markdown render com cursor blinking. Resultado grava artefato best-effort em `audit_log`.
+- **P3 Correção de redação**: `/professor/correcao` analisa texto colado nas 5 competências ENEM (GPT-4o-mini via OpenRouter, fallback Haiku). Form com nome do aluno + tema + textarea + botão. Resultado grava artefato best-effort em `audit_log`.
+- **P4 Gerador de prova real**: `/professor/provas` chama `/api/exam-generation` via capability `exam_generation`, gerando prova com matriz BNCC, versões e gabarito comentado. Permite copiar ou baixar `.md`; grava artefato best-effort em `audit_log`.
 - **Tutora v4.3 socrática + RAG da turma**: prompt do `chat_student` reescrito com regras explícitas de não entregar resposta antes do aluno tentar. Slots `{{foco_pedagogico}}` (de `class_focus_skills`) e `{{contexto_material}}` (top-3 chunks via pgvector) injetados pelo `/api/chat`. Sem material relevante → tutora segue com base ampla.
 - **Material da turma no `/professor/turma`**: card com multi-select de habilidades BNCC pra foco + upload (PDF/DOCX/TXT/MD até 50MB) com status (pendente/processando/pronto/falhou) e remoção. Upload direto pro Vercel Blob via signed URL (`@vercel/blob/client`); `/api/material/process` extrai texto + chunks + embeddings (`text-embedding-3-small`).
 - **Config macro LLM no admin**: `/admin/configuracoes/llm` (papel `admin_nexus`) edita provider/modelo/temperature/maxTokens/fallback por capability e prompts versionados. Mudanças aplicam imediatamente (gateway lê DB com cache por request). Cai no fallback hardcoded sem DB ou sem registro.
@@ -59,7 +59,7 @@
 - RLS escrita no SQL mas conexão atual bypassa (queries rodam como owner; políticas existem mas não enforçam)
 - P6 (perfil aluno) e P7 (diário): mockados
 - Biblioteca da rede ainda é majoritariamente mock, mas já sabe mostrar "Gerados por mim" quando houver artefatos LLM no `audit_log`
-- Persistência de planos/provas/correções tem helper preparado em `src/lib/teacher/artifacts.ts`, mas não fica no request path de geração em produção; falta tabela dedicada para editar, compartilhar, versionar e buscar artefatos
+- Persistência de planos/provas/correções ainda usa `audit_log` como trilha best-effort; falta tabela dedicada para editar, compartilhar, versionar e buscar artefatos
 - Telas Secretaria S2-S9 e Admin N2-N7/N9: mockadas (N8 e N8b agora reais)
 - IDEB gráfico e Indicadores Nexus na S1 seguem com dados do mock
 - WhatsApp, OCR, áudio: nada começado (PDF e RAG agora funcionais via /professor/turma)

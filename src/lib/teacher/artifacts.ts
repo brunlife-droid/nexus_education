@@ -12,10 +12,6 @@ function dbAvailable(): boolean {
   return !!process.env.DATABASE_URL;
 }
 
-function artifactWritesEnabled(): boolean {
-  return process.env.TEACHER_ARTIFACTS_AUDIT_LOG === "1";
-}
-
 export interface TeacherArtifactSummary {
   id: string;
   kind: TeacherArtifactKind;
@@ -120,7 +116,7 @@ export async function recordTeacherArtifact(input: {
   content: string;
   result: ChatCompletionResponse;
 }): Promise<string | null> {
-  if (!dbAvailable() || !artifactWritesEnabled()) return null;
+  if (!dbAvailable()) return null;
 
   try {
     const artifactId = crypto.randomUUID();

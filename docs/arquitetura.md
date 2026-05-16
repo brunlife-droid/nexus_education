@@ -127,7 +127,7 @@ Convenção pra nova capability: 1) adicionar rota em `routes.ts` (fallback hard
 - **Foco pedagógico**: `class_focus_skills` é a lista de habilidades BNCC marcadas pela profe em `/professor/turma` (multi-select). Vão pro prompt como prioridade — a tutora ainda responde sobre outros temas, só dá preferência a esses.
 
 ### Artefatos do professor
-- Planos, correções de redação e provas gerados pelo LLM têm helper preparado para trilha best-effort em `audit_log` com `action='teacher_artifact.create'`, `target_type='teacher_artifact'` e `metadata` contendo `actorUserId`, `kind`, `title`, parâmetros, conteúdo limitado e metadados do modelo. Esse helper não fica no request path de geração em produção enquanto não existir tabela dedicada.
+- Planos, correções de redação e provas gerados pelo LLM gravam uma trilha best-effort em `audit_log` com `action='teacher_artifact.create'`, `target_type='teacher_artifact'` e `metadata` contendo `actorUserId`, `kind`, `title`, parâmetros, conteúdo limitado e metadados do modelo.
 - `src/lib/teacher/artifacts.ts` centraliza gravação e leitura desses artefatos. Sem `DATABASE_URL` ou com falha de DB, a geração segue funcionando e apenas não persiste.
 - `/professor/biblioteca` lê os últimos artefatos do usuário logado e mostra a seção "Gerados por mim". Isso é ponte de MVP; uma tabela dedicada continua sendo o caminho correto para edição, compartilhamento, busca e versionamento.
 
