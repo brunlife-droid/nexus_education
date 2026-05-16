@@ -20,9 +20,11 @@ import {
   classes,
   classFocusSkills,
   documents,
+  habilities,
 } from "@/lib/db/schema";
 import { auth } from "@/lib/auth";
 import { getCurrentTenant } from "@/lib/tenants/server";
+import { HABILIDADES_BNCC } from "@/lib/mocks";
 
 async function requirePedagogicalSession() {
   const session = await auth();
@@ -70,9 +72,10 @@ export async function setClassFocus(input: {
         eq(classFocusSkills.classId, input.classId),
         eq(classFocusSkills.tenantId, tenant.id),
       ),
-    );
+  );
 
   if (input.habilityCodes.length > 0) {
+    await ensureHabilities(input.habilityCodes);
     await db()
       .insert(classFocusSkills)
       .values(
@@ -176,6 +179,23 @@ export async function ensureMaterialProcessing(input: {
 
   revalidatePath("/professor/turma");
   return { ok: true, documentId };
+}
+
+async function ensureHabilities(codes: string[]) {
+  const known = HABILIDADES_BNCC.filter((h) => codes.includes(h.codigo));
+  if (known.length === 0) return;
+
+  await db()
+    .insert(habilities)
+    .values(
+      known.map((h) => ({
+        code: h.codigo,
+        area: h.area,
+        description: h.desc,
+        grade: "7",
+      })),
+    )
+    .onConflictDoNothing();
 }
 
 function pickType(contentType: string): string {

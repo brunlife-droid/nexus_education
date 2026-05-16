@@ -33,6 +33,7 @@ Consequência: o professor já consegue gerar prova real em produção e os prin
 - `loadTeacherContext()` ganhou reparo/fallback específico para o professor demo Ricardo em Alfenas, evitando que a página `/professor/turma` fique bloqueada se o Neon estiver com membership antigo sem escopo.
 - Seed da rede também garante o user demo `u-joao` antes de inserir `students`, evitando falha de FK que deixava a turma sem alunos/habilidades em produção.
 - Queries da turma usam fallback demo de 12 alunos e 9 habilidades BNCC quando o DB retorna vazio para `class-demo-7a`, mantendo a validação de produção navegável enquanto o seed real é estabilizado.
+- `setClassFocus()` garante as habilidades BNCC conhecidas antes de inserir foco, para o clique funcionar mesmo quando a lista veio do fallback demo.
 
 Consequência: uploads passam a respeitar o store privado da Vercel e ficam mais alinhados com LGPD/material escolar sensível.
 
