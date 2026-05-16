@@ -15,6 +15,7 @@
 - A persistência fica desacoplada da FK de usuário no `audit_log` e limita o conteúdo gravado, para preservar a geração mesmo quando a trilha best-effort falhar ou quando a tabela de artefatos dedicada ainda não existir.
 - `/professor/biblioteca` ganhou seção "Gerados por mim", lendo os artefatos do professor no `audit_log` antes dos cards mockados da biblioteca da rede.
 - O gateway agora propaga `promptVersion` nas chamadas `complete()`, permitindo rastrear qual prompt gerou cada artefato.
+- `/api/llm-health` passou a aceitar `?capability=` para smoke test controlado das capabilities de professor em produção.
 
 Consequência: o professor já consegue gerar prova real em produção e os principais artefatos LLM deixam rastro reaproveitável sem exigir uma nova migration antes da demo. Uma tabela dedicada de artefatos ainda é recomendada quando a biblioteca evoluir para edição, compartilhamento e versionamento completo.
 

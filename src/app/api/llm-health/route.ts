@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { complete } from "@/lib/llm";
 import { routeFor } from "@/lib/llm/routes";
 import { auth } from "@/lib/auth";
+import type { Capability } from "@/lib/llm/types";
 
 /**
  * GET /api/llm-health
@@ -15,28 +16,38 @@ import { auth } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+const HEALTH_CAPABILITIES = new Set<Capability>([
+  "chat_student",
+  "plan_generation",
+  "exam_generation",
+  "essay_correction",
+]);
+
+export async function GET(request: NextRequest) {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const expectedRoute = routeFor("chat_student");
+  const requestedCapability = request.nextUrl.searchParams.get("capability");
+  const capability = HEALTH_CAPABILITIES.has(requestedCapability as Capability)
+    ? (requestedCapability as Capability)
+    : "chat_student";
+  const expectedRoute = routeFor(capability);
   const hasApiKey = !!process.env.OPENROUTER_API_KEY;
 
   const start = Date.now();
   try {
     const result = await complete({
-      capability: "chat_student",
+      capability,
       messages: [
         {
           role: "user",
-          content:
-            "Responda apenas 'pong' (sem aspas, sem nada a mais).",
+          content: healthPromptFor(capability),
         },
       ],
       tenantId: session.user.tenantId ?? "alfenas",
-      maxTokens: 16,
+      maxTokens: capability === "chat_student" ? 16 : 160,
     });
 
     const isReal = result.provider === "openrouter";
@@ -44,6 +55,7 @@ export async function GET() {
     return NextResponse.json({
       ok: true,
       live: isReal,
+      capability,
       provider: result.provider,
       model: result.model,
       expectedModel: expectedRoute.model,
@@ -63,6 +75,7 @@ export async function GET() {
     return NextResponse.json(
       {
         ok: false,
+        capability,
         error: err instanceof Error ? err.message : String(err),
         latencyMs: Date.now() - start,
         env: {
@@ -73,4 +86,17 @@ export async function GET() {
       { status: 500 },
     );
   }
+}
+
+function healthPromptFor(capability: Capability): string {
+  if (capability === "plan_generation") {
+    return "Gere um plano curto de aula sobre frações equivalentes para 7º ano. Limite a 5 linhas.";
+  }
+  if (capability === "exam_generation") {
+    return "Gere uma prova curta de 2 questões sobre frações equivalentes para 7º ano. Limite a 8 linhas.";
+  }
+  if (capability === "essay_correction") {
+    return "Corrija brevemente esta redação: tecnologia ajuda a estudar, mas precisa de orientação. Limite a 5 linhas.";
+  }
+  return "Responda apenas 'pong' (sem aspas, sem nada a mais).";
 }
