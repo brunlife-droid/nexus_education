@@ -22,10 +22,12 @@ import {
   documents,
   habilities,
   schools,
+  tenants,
   users,
 } from "@/lib/db/schema";
 import { auth } from "@/lib/auth";
 import { getCurrentTenant } from "@/lib/tenants/server";
+import { TENANTS } from "@/lib/tenants/config";
 import { HABILIDADES_BNCC } from "@/lib/mocks";
 import type { NexusSessionUser } from "@/lib/auth/types";
 
@@ -231,6 +233,30 @@ async function ensureActionUser(user: NexusSessionUser) {
 
 async function ensureDemoClassScope(classId: string, tenantId: string) {
   if (classId !== DEMO_CLASS_ID || tenantId !== DEMO_TENANT_ID) return;
+  const tenant = TENANTS.alfenas;
+
+  await db()
+    .insert(tenants)
+    .values({
+      id: tenant.id,
+      subdomain: tenant.subdomain,
+      name: tenant.name,
+      short: tenant.short,
+      uf: tenant.uf,
+      monogram: tenant.monogram,
+      status: "ativo" as const,
+      tutorName: tenant.tutorName,
+      tutorFullName: tenant.tutorFull,
+      primary: tenant.primary,
+      primaryHover: tenant.primaryHover,
+      primaryFg: tenant.primaryFg,
+      primarySoft: tenant.primarySoft,
+      primaryBorder: tenant.primaryBorder,
+      secondary: tenant.secondary,
+      secondarySoft: tenant.secondarySoft,
+      secondaryFg: tenant.secondaryFg,
+    })
+    .onConflictDoNothing();
 
   await db()
     .insert(schools)

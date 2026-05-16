@@ -25,8 +25,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { classes, documents, schools } from "@/lib/db/schema";
+import { classes, documents, schools, tenants } from "@/lib/db/schema";
 import { getCurrentTenant } from "@/lib/tenants/server";
+import { TENANTS } from "@/lib/tenants/config";
 
 const DEMO_TENANT_ID = "alfenas";
 const DEMO_SCHOOL_ID = "school-demo-alfenas";
@@ -140,6 +141,30 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
 async function ensureDemoClassScope(classId: string, tenantId: string) {
   if (classId !== DEMO_CLASS_ID || tenantId !== DEMO_TENANT_ID) return;
+  const tenant = TENANTS.alfenas;
+
+  await db()
+    .insert(tenants)
+    .values({
+      id: tenant.id,
+      subdomain: tenant.subdomain,
+      name: tenant.name,
+      short: tenant.short,
+      uf: tenant.uf,
+      monogram: tenant.monogram,
+      status: "ativo" as const,
+      tutorName: tenant.tutorName,
+      tutorFullName: tenant.tutorFull,
+      primary: tenant.primary,
+      primaryHover: tenant.primaryHover,
+      primaryFg: tenant.primaryFg,
+      primarySoft: tenant.primarySoft,
+      primaryBorder: tenant.primaryBorder,
+      secondary: tenant.secondary,
+      secondarySoft: tenant.secondarySoft,
+      secondaryFg: tenant.secondaryFg,
+    })
+    .onConflictDoNothing();
 
   await db()
     .insert(schools)
