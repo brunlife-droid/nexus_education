@@ -37,6 +37,7 @@ Consequência: o professor já consegue gerar prova real em produção e os prin
 - O painel de foco agora mostra erro controlado quando a persistência falha, em vez de derrubar a página com erro de Server Action.
 - Action de foco e token de upload garantem a escola/turma demo `class-demo-7a` antes de validar `classes`, cobrindo o caso em que a tela veio do fallback visual.
 - As mesmas garantias também criam o tenant demo `alfenas` antes das FKs de escola/turma quando a base ainda não tem a row.
+- A lista de habilidades disponíveis agora mescla DB + fallback demo, evitando que uma base parcialmente seedada mostre só a habilidade recém-inserida.
 
 Consequência: uploads passam a respeitar o store privado da Vercel e ficam mais alinhados com LGPD/material escolar sensível.
 

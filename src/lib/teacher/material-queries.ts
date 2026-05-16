@@ -66,12 +66,18 @@ export async function loadAvailableHabilities(): Promise<FocusSkill[]> {
         grade: habilities.grade,
       })
       .from(habilities);
-    if (rows.length === 0) return demoAvailableHabilities();
-    return rows.sort((a, b) => a.code.localeCompare(b.code));
+    return mergeWithDemoHabilities(rows);
   } catch (err) {
     console.error("[material-queries] loadAvailableHabilities failed:", err);
     return demoAvailableHabilities();
   }
+}
+
+function mergeWithDemoHabilities(rows: FocusSkill[]): FocusSkill[] {
+  const byCode = new Map<string, FocusSkill>();
+  for (const h of demoAvailableHabilities()) byCode.set(h.code, h);
+  for (const h of rows) byCode.set(h.code, h);
+  return [...byCode.values()].sort((a, b) => a.code.localeCompare(b.code));
 }
 
 function demoAvailableHabilities(): FocusSkill[] {
