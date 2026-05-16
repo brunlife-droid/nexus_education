@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-05-16 — Ajuste de build dos alertas P1
+
+- Corrigida a tipagem de prioridade em `loadTeacherAlerts()` para evitar falha de TypeScript no build da Vercel.
+
+Consequência: mantém a entrega de alertas reais e libera novo deploy de produção.
+
+---
+
 ## 2026-05-16 — P1 alertas pedagógicos reais
 
 - `/professor` deixou de renderizar `ALERTAS_PROF` e passou a carregar `loadTeacherAlerts()` junto dos KPIs e destaques.

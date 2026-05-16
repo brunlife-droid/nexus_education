@@ -349,7 +349,8 @@ export async function loadTeacherAlerts(input: {
         studentId: student.studentId,
         studentName: student.fullName,
         type: "risk" as const,
-        priority: (student.avgScore < 0.35 ? "alta" : "media") as const,
+        priority:
+          student.avgScore < 0.35 ? ("alta" as const) : ("media" as const),
         reason: `Proficiência média em ${formatPercent(student.avgScore)}; priorizar retomada individual.`,
         href: `/professor/alunos?id=${student.studentId}`,
       };
@@ -377,7 +378,10 @@ export async function loadTeacherAlerts(input: {
         studentId: student.studentId,
         studentName: student.fullName,
         type: "pending" as const,
-        priority: (student.conversationCount === 0 ? "alta" : "media") as const,
+        priority:
+          student.conversationCount === 0
+            ? ("alta" as const)
+            : ("media" as const),
         reason,
         href: `/professor/alunos?id=${student.studentId}`,
       };
