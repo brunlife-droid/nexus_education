@@ -59,6 +59,19 @@ export async function POST(request: NextRequest) {
     ``,
     `Identifique a habilidade BNCC mais provável e siga a estrutura definida.`,
   ].join("\n");
+  const debug = request.nextUrl.searchParams.get("debug");
+
+  if (debug === "before-complete") {
+    return NextResponse.json({
+      ok: true,
+      stage: debug,
+      subject,
+      grade,
+      topic,
+      tenantId: tenant.id,
+      role: session.user.role,
+    });
+  }
 
   try {
     const result = await complete({
@@ -71,6 +84,15 @@ export async function POST(request: NextRequest) {
         tenant_uf: tenant.uf,
       },
     });
+    if (debug === "after-complete") {
+      return NextResponse.json({
+        ok: true,
+        stage: debug,
+        provider: result.provider,
+        model: result.model,
+        textPreview: result.text.slice(0, 200),
+      });
+    }
 
     return createBufferedSseResponse([
       { type: "text", text: result.text },
