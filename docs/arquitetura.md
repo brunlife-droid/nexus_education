@@ -82,6 +82,7 @@ O `CLAUDE.md` continua sendo a documentação humana do workflow; os hooks são 
 - Todas as funções são **graceful**: sem `DATABASE_URL` retornam `null`/`[]` sem propagar erro — o chat continua streamando em modo efêmero.
 - IDs gerados com `crypto.randomUUID()` no app (nunca no DB). Convenção do schema (`text PK`).
 - A API `/api/chat` envia chunk SSE `{ type: "meta", conversationId }` no início do stream pra o cliente atualizar URL via `history.replaceState` — refresh preserva a conversa.
+- Quando o RAG encontra trechos de material da turma, `/api/chat` também envia `{ type: "sources", sources }`. A mensagem da tutora persiste essa metadata em `messages.attachments` com `kind="source"`, para a conversa reaberta continuar mostrando as fontes usadas.
 - Ownership de conversation validado por `studentId` derivado da sessão antes de retomar (`?id=`) ou continuar via API (proteção contra IDOR).
 
 ### Auth + autorização
@@ -124,7 +125,7 @@ Convenção pra nova capability: 1) adicionar rota em `routes.ts` (fallback hard
 - **Schema**: `documents` ganhou `class_id` + `kind` (`class_material` | `national_library`) + `status` (`pending`|`processing`|`ready`|`failed`); `chunks` tem `embedding vector(1536)` + índice HNSW (migration 0001).
 - **Upload**: client uploads do `@vercel/blob/client` com `access: "private"` — browser PUT direto na Blob privada (`nexus-materials`) com token assinado por `/api/material/upload`. Teto 50MB no token; arquivo grande nunca passa por função do servidor (bypassa limite de 4.5MB).
 - **Processamento**: `/api/material/process` baixa o blob, extrai texto (`pdf-parse`/`mammoth`/texto puro), chunka (1800c + 200c overlap), embedda em lotes de 32 via `text-embedding-3-small`, persiste em `chunks`. `maxDuration = 300`s. Idempotente por `documentId`.
-- **Retrieve em conversa**: `rag/retrieve.ts` embedda a última pergunta do aluno e busca top-3 chunks da turma do aluno por cosine distance (threshold 0.35). `rag/context.ts` formata os slots `{{foco_pedagogico}}` (de `class_focus_skills`) e `{{contexto_material}}` que o prompt v4.3 espera. `/api/chat` faz isso antes de chamar `complete()` e devolver linhas `data: ...` para o frontend.
+- **Retrieve em conversa**: `rag/retrieve.ts` embedda a última pergunta do aluno e busca top-3 chunks da turma do aluno por cosine distance (threshold 0.35). `rag/context.ts` formata os slots `{{foco_pedagogico}}` (de `class_focus_skills`) e `{{contexto_material}}` que o prompt v4.3 espera, além de devolver as fontes estruturadas usadas pela UI. `/api/chat` faz isso antes de chamar `complete()` e devolver linhas `data: ...` para o frontend.
 - **Foco pedagógico**: `class_focus_skills` é a lista de habilidades BNCC marcadas pela profe em `/professor/turma` (multi-select). O painel salva via `/api/class-focus`, rota JSON autenticada por papel pedagógico. Vão pro prompt como prioridade — a tutora ainda responde sobre outros temas, só dá preferência a esses.
 - Para demo resiliente, `setClassFocus()` garante tenant/escola/turma demo e as habilidades BNCC conhecidas no DB antes de inserir `class_focus_skills`; `/api/material/upload` também garante tenant/turma demo antes de emitir token. `setBy`/`uploadedBy` só são preenchidos quando o usuário da sessão existe no DB, evitando FK quebrada por conflito legado de seed.
 

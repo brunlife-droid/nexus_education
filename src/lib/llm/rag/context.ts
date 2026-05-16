@@ -16,10 +16,34 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { classFocusSkills, habilities } from "@/lib/db/schema";
-import { retrieveForClass } from "./retrieve";
+import { retrieveForClass, type RetrievedChunk } from "./retrieve";
+
+const EMPTY_MATERIAL_BLOCK =
+  "(Sem material relevante encontrado para essa pergunta. Responda com seu conhecimento amplo.)";
+
+export interface RagSource {
+  documentId: string;
+  documentName: string;
+  chunkIndex: number;
+  score: number;
+}
+
+export interface MaterialContext {
+  block: string;
+  sources: RagSource[];
+}
 
 function dbAvailable(): boolean {
   return !!process.env.DATABASE_URL;
+}
+
+function toRagSource(chunk: RetrievedChunk): RagSource {
+  return {
+    documentId: chunk.documentId,
+    documentName: chunk.documentName,
+    chunkIndex: chunk.chunkIndex,
+    score: Number(chunk.score),
+  };
 }
 
 export async function buildFocusBlock(input: {
@@ -62,6 +86,15 @@ export async function buildMaterialBlock(input: {
   classId: string;
   query: string;
 }): Promise<string> {
+  const context = await buildMaterialContext(input);
+  return context.block;
+}
+
+export async function buildMaterialContext(input: {
+  tenantId: string;
+  classId: string;
+  query: string;
+}): Promise<MaterialContext> {
   const chunks = await retrieveForClass({
     tenantId: input.tenantId,
     classId: input.classId,
@@ -71,13 +104,15 @@ export async function buildMaterialBlock(input: {
   });
 
   if (chunks.length === 0) {
-    return "(Sem material relevante encontrado para essa pergunta. Responda com seu conhecimento amplo.)";
+    return { block: EMPTY_MATERIAL_BLOCK, sources: [] };
   }
 
-  return chunks
-    .map(
+  return {
+    block: chunks.map(
       (c, i) =>
         `[Trecho ${i + 1} · Fonte: ${c.documentName}]\n${c.content.trim()}`,
     )
-    .join("\n\n---\n\n");
+      .join("\n\n---\n\n"),
+    sources: chunks.map(toRagSource),
+  };
 }

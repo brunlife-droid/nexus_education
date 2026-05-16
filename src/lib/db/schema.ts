@@ -333,7 +333,16 @@ export const messages = pgTable(
     habilityCode: text("hability_code"),
     // Anexos (foto, áudio etc.) — referência por blob_url
     attachments: jsonb("attachments").$type<
-      Array<{ kind: "image" | "audio"; url: string; mime: string }>
+      Array<
+        | { kind: "image" | "audio"; url: string; mime: string }
+        | {
+            kind: "source";
+            documentId: string;
+            documentName: string;
+            chunkIndex: number;
+            score: number;
+          }
+      >
     >(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },

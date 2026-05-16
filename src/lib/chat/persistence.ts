@@ -13,12 +13,30 @@ import { conversations, messages } from "@/lib/db/schema";
 
 export type DbMessageRole = "user" | "assistant" | "system";
 
+export type MediaMessageAttachment = {
+  kind: "image" | "audio";
+  url: string;
+  mime: string;
+};
+
+export type MessageSourceAttachment = {
+  kind: "source";
+  documentId: string;
+  documentName: string;
+  chunkIndex: number;
+  score: number;
+};
+
+export type MessageAttachment =
+  | MediaMessageAttachment
+  | MessageSourceAttachment;
+
 export interface PersistedMessage {
   id: string;
   role: DbMessageRole;
   content: string;
   createdAt: Date;
-  attachments: Array<{ kind: "image" | "audio"; url: string; mime: string }> | null;
+  attachments: MessageAttachment[] | null;
 }
 
 export interface ConversationSummary {
@@ -71,7 +89,7 @@ export async function appendMessage(input: {
   conversationId: string;
   role: DbMessageRole;
   content: string;
-  attachments?: Array<{ kind: "image" | "audio"; url: string; mime: string }>;
+  attachments?: MessageAttachment[];
   model?: string;
   promptVersion?: string;
   inputTokens?: number;

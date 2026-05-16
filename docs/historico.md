@@ -6,6 +6,17 @@
 
 ---
 
+## 2026-05-16 — Fontes RAG visíveis no chat do aluno
+
+- `/api/chat` passou a montar o contexto de material como `block + sources`: o mesmo trecho usado no prompt agora também vira metadata para a interface.
+- O stream do chat ganhou o chunk `sources`, enviado quando a busca vetorial encontra material da turma acima do threshold.
+- Mensagens da tutora persistem as fontes usadas em `messages.attachments` com `kind="source"` (nome do documento, índice do trecho e score), sem exigir migration nova.
+- `/aluno/chat` renderiza chips compactos "Fonte" abaixo da resposta da tutora e também reidrata essas fontes ao abrir uma conversa antiga.
+
+Consequência: quando o professor subir material e a tutora usar um trecho RAG, o aluno enxerga de onde veio a resposta, fechando a transparência mínima do MVP.
+
+---
+
 ## 2026-05-16 — P4 gerador de prova real + artefatos do professor
 
 - Adicionada capability `exam_generation` no gateway LLM, com rota hardcoded, prompt versionado `src/lib/llm/prompts/exam-generation.ts` e visibilidade no admin de configuração macro LLM.

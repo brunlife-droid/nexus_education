@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { complete } from "@/lib/llm";
-import { buildFocusBlock, buildMaterialBlock } from "@/lib/llm/rag/context";
+import {
+  buildFocusBlock,
+  buildMaterialContext,
+  type MaterialContext,
+} from "@/lib/llm/rag/context";
 import { getCurrentTenant } from "@/lib/tenants/server";
 import { auth } from "@/lib/auth";
 import {
@@ -23,7 +27,8 @@ import { createBufferedSseResponse } from "@/lib/http/sse";
  *   conversationId?: string  // se ausente, cria nova conversation
  * }
  *
- * Responde em linhas SSE com chunks { type: "text" | "done" | "error" | "meta" }.
+ * Responde em linhas SSE com chunks
+ * { type: "text" | "done" | "error" | "meta" | "sources" }.
  * O chunk "meta" carrega { conversationId } pra o cliente atualizar a URL.
  *
  * Persistência é graceful: sem DATABASE_URL, o chat continua streamando
@@ -101,19 +106,23 @@ export async function POST(request: NextRequest) {
       : null;
 
     const lastUserText = lastUserMessage?.content ?? "";
-    const [focoBlock, materialBlock] = classId
-      ? await Promise.all([
-          buildFocusBlock({ tenantId: tenant.id, classId }),
-          buildMaterialBlock({
-            tenantId: tenant.id,
-            classId,
-            query: lastUserText,
-          }),
-        ])
-      : [
-          "(Nenhuma habilidade marcada como foco no momento.)",
-          "(Sem material relevante encontrado para essa pergunta. Responda com seu conhecimento amplo.)",
-        ];
+    let focoBlock = "(Nenhuma habilidade marcada como foco no momento.)";
+    let materialContext: MaterialContext = {
+      block:
+        "(Sem material relevante encontrado para essa pergunta. Responda com seu conhecimento amplo.)",
+      sources: [],
+    };
+
+    if (classId) {
+      [focoBlock, materialContext] = await Promise.all([
+        buildFocusBlock({ tenantId: tenant.id, classId }),
+        buildMaterialContext({
+          tenantId: tenant.id,
+          classId,
+          query: lastUserText,
+        }),
+      ]);
+    }
 
     const result = await complete({
       capability: "chat_student",
@@ -123,11 +132,14 @@ export async function POST(request: NextRequest) {
         tutor_name: tenant.tutorName,
         prefeitura: tenant.short,
         foco_pedagogico: focoBlock,
-        contexto_material: materialBlock,
+        contexto_material: materialContext.block,
       },
     });
 
     events.push({ type: "text", text: result.text });
+    if (materialContext.sources.length > 0) {
+      events.push({ type: "sources", sources: materialContext.sources });
+    }
     events.push({
       type: "done",
       meta: {
@@ -140,11 +152,16 @@ export async function POST(request: NextRequest) {
     });
 
     if (persistedConversationId && result.text) {
+      const sourceAttachments = materialContext.sources.map((source) => ({
+        kind: "source" as const,
+        ...source,
+      }));
       await appendMessage({
         tenantId: tenant.id,
         conversationId: persistedConversationId,
         role: "assistant",
         content: result.text,
+        attachments: sourceAttachments.length > 0 ? sourceAttachments : undefined,
         model: result.model,
         inputTokens: result.inputTokens,
         outputTokens: result.outputTokens,

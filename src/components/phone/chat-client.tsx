@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
 import {
   ArrowUp,
+  FileText,
   Image as ImageIcon,
   Mic,
   Paperclip,
@@ -12,12 +13,20 @@ import {
 } from "lucide-react";
 import { Chip } from "@/components/ui";
 
-interface Message {
+export interface MessageSource {
+  documentId: string;
+  documentName: string;
+  chunkIndex: number;
+  score: number;
+}
+
+export interface ChatClientMessage {
   role: "user" | "assistant";
   content: string;
   hora?: string;
   streaming?: boolean;
   imageUrl?: string;
+  sources?: MessageSource[];
 }
 
 interface ChatClientProps {
@@ -29,7 +38,7 @@ interface ChatClientProps {
     short: string;
     tutorName: string;
   };
-  initialMessages: Message[];
+  initialMessages: ChatClientMessage[];
   initialConversationId?: string | null;
 }
 
@@ -37,12 +46,33 @@ function formatTime(d: Date): string {
   return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
+function normalizeSources(value: unknown): MessageSource[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is MessageSource => {
+      return (
+        !!item &&
+        typeof item === "object" &&
+        "documentId" in item &&
+        "documentName" in item &&
+        "chunkIndex" in item
+      );
+    })
+    .map((item) => ({
+      documentId: String(item.documentId),
+      documentName: String(item.documentName),
+      chunkIndex: Number(item.chunkIndex),
+      score: Number(item.score ?? 0),
+    }));
+}
+
 export function ChatClient({
   tenant,
   initialMessages,
   initialConversationId = null,
 }: ChatClientProps) {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [messages, setMessages] =
+    useState<ChatClientMessage[]>(initialMessages);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -69,13 +99,13 @@ export function ChatClient({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "upload failed");
 
-      const userMsg: Message = {
+      const userMsg: ChatClientMessage = {
         role: "user",
         content: "Olha essa questão pra mim:",
         imageUrl: data.file.url,
         hora: now,
       };
-      const placeholder: Message = {
+      const placeholder: ChatClientMessage = {
         role: "assistant",
         content: "",
         hora: now,
@@ -101,7 +131,7 @@ export function ChatClient({
     }
   }
 
-  async function streamReply(history: Message[]) {
+  async function streamReply(history: ChatClientMessage[]) {
     setSending(true);
     try {
       const response = await fetch("/api/chat", {
@@ -157,6 +187,18 @@ export function ChatClient({
                 }
                 return copy;
               });
+            } else if (chunk.type === "sources") {
+              const sources = normalizeSources(chunk.sources);
+              if (sources.length > 0) {
+                setMessages((prev) => {
+                  const copy = [...prev];
+                  const last = copy[copy.length - 1];
+                  if (last && last.streaming) {
+                    copy[copy.length - 1] = { ...last, sources };
+                  }
+                  return copy;
+                });
+              }
             } else if (chunk.type === "done") {
               setMessages((prev) => {
                 const copy = [...prev];
@@ -205,8 +247,8 @@ export function ChatClient({
     if (!text || sending) return;
 
     const now = formatTime(new Date());
-    const userMsg: Message = { role: "user", content: text, hora: now };
-    const placeholder: Message = {
+    const userMsg: ChatClientMessage = { role: "user", content: text, hora: now };
+    const placeholder: ChatClientMessage = {
       role: "assistant",
       content: "",
       hora: now,
@@ -376,7 +418,7 @@ function MessageBubble({
   tutorPrimary,
   tutorSoft,
 }: {
-  message: Message;
+  message: ChatClientMessage;
   tutorInitial: string;
   tutorPrimary: string;
   tutorSoft: string;
@@ -428,8 +470,31 @@ function MessageBubble({
         {message.hora && !message.streaming && (
           <div className="text-text-faint mt-1.5 text-[11px]">{message.hora}</div>
         )}
+        {!message.streaming && message.sources && message.sources.length > 0 && (
+          <SourceList sources={message.sources} />
+        )}
       </div>
       <style>{`@keyframes blink { 50% { opacity: 0 } }`}</style>
+    </div>
+  );
+}
+
+function SourceList({ sources }: { sources: MessageSource[] }) {
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {sources.slice(0, 3).map((source) => (
+        <div
+          key={`${source.documentId}-${source.chunkIndex}`}
+          className="border-border bg-surface-2 text-text-muted flex max-w-full items-center gap-1.5 rounded-md border px-2 py-1 text-[11.5px]"
+          title={`${source.documentName} - trecho ${source.chunkIndex + 1}`}
+        >
+          <FileText size={12} className="shrink-0" />
+          <span className="truncate">Fonte: {source.documentName}</span>
+          <span className="text-text-faint shrink-0">
+            trecho {source.chunkIndex + 1}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
