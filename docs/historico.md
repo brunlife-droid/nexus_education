@@ -6,6 +6,17 @@
 
 ---
 
+## 2026-05-16 — Logout visível nas áreas autenticadas
+
+- Adicionado `LogoutButton` compartilhado em `src/components/shell/logout-button.tsx`, usando `signOut()` do NextAuth e redirecionando para `/entrar`.
+- O botão "Sair" aparece no rodapé do shell de aluno, professor, secretaria e admin, sem precisar repetir código em cada página interna.
+- `Sidebar` e `Topbar` agora podem receber o nome real da sessão; os layouts de professor, secretaria e admin passam o usuário retornado por `requireRole(...)`.
+- `session-paths.ts` ganhou labels client-safe de papéis para exibir "Professor", "Secretaria", "Admin Nexus" etc. sem acoplar componentes ao server auth.
+
+Consequência: usuários demo e futuros usuários reais conseguem encerrar a sessão por qualquer área protegida, reduzindo confusão nos testes de produção e evitando troca de perfil presa no navegador.
+
+---
+
 ## 2026-05-16 — Produção validada para fluxos LLM principais
 
 Validação final na produção (`claude-code-teste.vercel.app`) depois do deploy da correção de SSE:

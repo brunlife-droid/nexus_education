@@ -12,6 +12,7 @@ import {
 import { PrefLogo } from "@/components/tenant";
 import type { Tenant } from "@/lib/tenants";
 import { cn } from "@/lib/cn";
+import { LogoutButton } from "./logout-button";
 
 interface AlunoSidebarProps {
   tenant: Tenant;
@@ -130,32 +131,35 @@ export function AlunoSidebar({ tenant, studentName }: AlunoSidebarProps) {
 
       {/* User profile no rodapé */}
       <div className="border-border border-t p-3">
-        <Link
-          href="/aluno/acessibilidade"
-          className="hover:bg-surface-2 flex items-center gap-2.5 rounded-md p-2 transition-colors"
-        >
-          <div
-            className="flex size-9 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold"
-            style={{
-              background: tenant.primarySoft,
-              color: tenant.primary,
-            }}
+        <div className="space-y-1">
+          <Link
+            href="/aluno/acessibilidade"
+            className="hover:bg-surface-2 flex items-center gap-2.5 rounded-md p-2 transition-colors"
           >
-            {studentName
-              .split(" ")
-              .slice(0, 2)
-              .map((s) => s[0])
-              .join("")
-              .toUpperCase()}
-          </div>
-          <div className="min-w-0 flex-1 leading-tight">
-            <div className="truncate text-[13px] font-medium">{studentName}</div>
-            <div className="text-text-faint truncate text-[11px]">
-              7º A · {tenant.short}
+            <div
+              className="flex size-9 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold"
+              style={{
+                background: tenant.primarySoft,
+                color: tenant.primary,
+              }}
+            >
+              {studentName
+                .split(" ")
+                .slice(0, 2)
+                .map((s) => s[0])
+                .join("")
+                .toUpperCase()}
             </div>
-          </div>
-          <Settings size={14} className="text-text-faint" />
-        </Link>
+            <div className="min-w-0 flex-1 leading-tight">
+              <div className="truncate text-[13px] font-medium">{studentName}</div>
+              <div className="text-text-faint truncate text-[11px]">
+                7º A · {tenant.short}
+              </div>
+            </div>
+            <Settings size={14} className="text-text-faint" />
+          </Link>
+          <LogoutButton />
+        </div>
       </div>
     </aside>
   );

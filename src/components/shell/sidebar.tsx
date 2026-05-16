@@ -7,17 +7,24 @@ import { PrefLogo } from "@/components/tenant";
 import type { Tenant } from "@/lib/tenants";
 import { cn } from "@/lib/cn";
 import { NexusMark } from "./nexus-mark";
+import { LogoutButton } from "./logout-button";
 import { LAYERS, type LayerConfig, type LayerKey } from "./nav";
 
 interface SidebarProps {
   layer: LayerKey;
   tenant: Tenant;
+  userName?: string;
+  userRole?: string;
 }
 
-export function Sidebar({ layer, tenant }: SidebarProps) {
+export function Sidebar({ layer, tenant, userName, userRole }: SidebarProps) {
   const config = LAYERS[layer];
   const pathname = usePathname();
   const isAdmin = layer === "admin";
+  const user = {
+    name: userName ?? config.user?.name ?? "Usuário",
+    role: userRole ?? config.user?.role ?? config.label,
+  };
 
   return (
     <aside className="bg-surface border-border flex h-full flex-col overflow-hidden border-r">
@@ -68,19 +75,17 @@ export function Sidebar({ layer, tenant }: SidebarProps) {
         </div>
 
         {/* User card */}
-        {config.user && (
-          <div className="bg-surface-2 mx-3 mt-3 flex items-center gap-2.5 rounded-md p-2.5">
-            <Avatar name={config.user.name} size={32} />
-            <div className="min-w-0 leading-tight">
-              <div className="truncate text-[12.5px] font-medium">
-                {config.user.name}
-              </div>
-              <div className="text-text-faint truncate text-[10.5px]">
-                {config.user.role}
-              </div>
+        <div className="bg-surface-2 mx-3 mt-3 flex items-center gap-2.5 rounded-md p-2.5">
+          <Avatar name={user.name} size={32} />
+          <div className="min-w-0 leading-tight">
+            <div className="truncate text-[12.5px] font-medium">
+              {user.name}
+            </div>
+            <div className="text-text-faint truncate text-[10.5px]">
+              {user.role}
             </div>
           </div>
-        )}
+        </div>
 
         {/* Nav groups */}
         {config.groups.map((group) => (
@@ -119,7 +124,8 @@ export function Sidebar({ layer, tenant }: SidebarProps) {
       </div>
 
       {/* Footer */}
-      <div className="border-border border-t px-3 py-3">
+      <div className="border-border space-y-2 border-t px-3 py-3">
+        <LogoutButton />
         <div className="text-text-faint flex justify-between text-[10.5px]">
           <span>Powered by</span>
           <span className="text-text-muted font-semibold">

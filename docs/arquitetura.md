@@ -88,6 +88,7 @@ O `CLAUDE.md` continua sendo a documentação humana do workflow; os hooks são 
 - NextAuth v5 (Credentials provider com whitelist demo enquanto `DATABASE_URL` não tem users seedados).
 - **Server**: `src/lib/auth/session.ts` exporta `requireAuth()` e `requireRole(...)` — Server Components/layouts chamam isso no topo. Não logado vira redirect pra `/entrar?callbackUrl=<x-pathname>`; papel errado vira redirect pra própria home do papel (`getLayerHomePath`).
 - **Client**: `src/lib/auth/session-paths.ts` é client-safe (sem `next/headers`, sem `redirect`) — login form importa daqui pra computar destino pós-signIn.
+- **Logout no shell**: `src/components/shell/logout-button.tsx` chama `signOut()` no client e redireciona para `/entrar`. `Sidebar`/`AlunoSidebar` renderizam o botão no rodapé das áreas protegidas.
 - **API routes**: chamam `auth()` direto + retornam 401/403 conforme caso. Ex: `/api/chat`.
 - **Mapa de papéis → home**: `aluno/responsavel → /aluno/chat`, `professor/coordenador/diretor/orientador → /professor`, `secretaria → /secretaria`, `admin_nexus → /admin`.
 - **Resolução de `studentId`** centralizada em `src/lib/db/student-resolver.ts` — para o demo `u-joao`, dispara seed idempotente; pros demais, lookup em `students` por `(userId, tenantId)`. Retorna `null` se nada bater — chamador trata como efêmero.

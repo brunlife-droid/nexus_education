@@ -7,9 +7,10 @@ import { LAYERS, type LayerKey } from "./nav";
 
 interface TopbarProps {
   layer: LayerKey;
+  userName?: string;
 }
 
-export function Topbar({ layer }: TopbarProps) {
+export function Topbar({ layer, userName }: TopbarProps) {
   const pathname = usePathname();
   const config = LAYERS[layer];
   const screen = config.groups
@@ -57,7 +58,7 @@ export function Topbar({ layer }: TopbarProps) {
       </button>
 
       {/* User avatar */}
-      <Avatar name={config.user?.name ?? "Nexus"} size={30} />
+      <Avatar name={userName ?? config.user?.name ?? "Nexus"} size={30} />
     </div>
   );
 }
