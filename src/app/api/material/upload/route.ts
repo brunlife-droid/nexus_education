@@ -25,9 +25,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { classes, documents, schools, tenants } from "@/lib/db/schema";
+import { classes, documents, schools, tenants, users } from "@/lib/db/schema";
 import { getCurrentTenant } from "@/lib/tenants/server";
 import { TENANTS } from "@/lib/tenants/config";
+import type { NexusSessionUser } from "@/lib/auth/types";
 
 const DEMO_TENANT_ID = "alfenas";
 const DEMO_SCHOOL_ID = "school-demo-alfenas";
@@ -82,6 +83,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             throw new Error("turma inválida para esse tenant");
           }
         }
+        const uploadedBy = process.env.DATABASE_URL
+          ? await ensureUploadUser(session.user)
+          : null;
 
         return {
           allowedContentTypes: ALLOWED_MIME,
@@ -89,7 +93,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           tokenPayload: JSON.stringify({
             classId,
             tenantId,
-            uploadedBy: session.user.id,
+            uploadedBy,
           }),
         };
       },
@@ -102,7 +106,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           const meta = JSON.parse(tokenPayload) as {
             classId: string;
             tenantId: string;
-            uploadedBy: string;
+            uploadedBy: string | null;
           };
           const documentId = crypto.randomUUID();
           await db()
@@ -136,6 +140,32 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { error: err instanceof Error ? err.message : "upload failed" },
       { status: 400 },
     );
+  }
+}
+
+async function ensureUploadUser(user: NexusSessionUser): Promise<string | null> {
+  try {
+    await db()
+      .insert(users)
+      .values({
+        id: user.id,
+        email: user.email ?? null,
+        name: user.name ?? user.email ?? user.id,
+        image: user.image ?? null,
+      })
+      .onConflictDoNothing();
+
+    const row = (
+      await db()
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.id, user.id))
+        .limit(1)
+    )[0];
+    return row?.id ?? null;
+  } catch (err) {
+    console.warn("[material/upload] ensureUploadUser failed:", err);
+    return null;
   }
 }
 

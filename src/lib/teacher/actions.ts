@@ -74,7 +74,7 @@ export async function setClassFocus(input: {
   try {
     await ensureDemoClassScope(input.classId, tenant.id);
     await assertClassInTenant(input.classId, tenant.id);
-    await ensureActionUser(user);
+    const actorUserId = await ensureActionUser(user);
 
     // Substitui o conjunto inteiro de habilidades em foco (mais simples
     // que diff e suficiente — a lista é curta).
@@ -89,16 +89,23 @@ export async function setClassFocus(input: {
 
     if (input.habilityCodes.length > 0) {
       await ensureHabilities(input.habilityCodes);
-      await db()
-        .insert(classFocusSkills)
-        .values(
-          input.habilityCodes.map((code) => ({
+      const values = [...new Set(input.habilityCodes)].map((code) => ({
             tenantId: tenant.id,
             classId: input.classId,
             habilityCode: code,
-            setBy: user.id,
-          })),
-        );
+            setBy: actorUserId,
+          }));
+
+      await db()
+        .insert(classFocusSkills)
+        .values(values)
+        .onConflictDoUpdate({
+          target: [classFocusSkills.classId, classFocusSkills.habilityCode],
+          set: {
+            tenantId: tenant.id,
+            setBy: actorUserId,
+          },
+        });
     }
 
     revalidatePath("/professor/turma");
@@ -166,9 +173,11 @@ export async function ensureMaterialProcessing(input: {
 }) {
   const user = await requirePedagogicalSession();
   const tenant = await getCurrentTenant();
+  await ensureDemoClassScope(input.classId, tenant.id);
   await assertClassInTenant(input.classId, tenant.id);
 
   if (!process.env.DATABASE_URL) return { ok: true };
+  const actorUserId = await ensureActionUser(user);
 
   // Verifica se já existe row pra essa URL (webhook pode ter criado).
   const existing = (
@@ -188,7 +197,7 @@ export async function ensureMaterialProcessing(input: {
         id: documentId,
         tenantId: tenant.id,
         classId: input.classId,
-        uploadedBy: user.id,
+        uploadedBy: actorUserId,
         name: input.filename,
         type: pickType(input.contentType),
         kind: "class_material",
@@ -219,16 +228,30 @@ async function ensureHabilities(codes: string[]) {
     .onConflictDoNothing();
 }
 
-async function ensureActionUser(user: NexusSessionUser) {
-  await db()
-    .insert(users)
-    .values({
-      id: user.id,
-      email: user.email ?? null,
-      name: user.name ?? user.email ?? user.id,
-      image: user.image ?? null,
-    })
-    .onConflictDoNothing();
+async function ensureActionUser(user: NexusSessionUser): Promise<string | null> {
+  try {
+    await db()
+      .insert(users)
+      .values({
+        id: user.id,
+        email: user.email ?? null,
+        name: user.name ?? user.email ?? user.id,
+        image: user.image ?? null,
+      })
+      .onConflictDoNothing();
+
+    const row = (
+      await db()
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.id, user.id))
+        .limit(1)
+    )[0];
+    return row?.id ?? null;
+  } catch (err) {
+    console.warn("[teacher/actions] ensureActionUser failed:", err);
+    return null;
+  }
 }
 
 async function ensureDemoClassScope(classId: string, tenantId: string) {
