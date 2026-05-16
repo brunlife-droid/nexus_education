@@ -15,6 +15,7 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
+import { get } from "@vercel/blob";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { chunks, documents } from "@/lib/db/schema";
@@ -85,10 +86,14 @@ export async function POST(request: NextRequest) {
     .where(eq(documents.id, documentId));
 
   try {
-    const res = await fetch(doc.sourceUrl);
-    if (!res.ok) throw new Error(`download falhou: HTTP ${res.status}`);
-    const buffer = Buffer.from(await res.arrayBuffer());
-    const mime = res.headers.get("content-type") ?? "";
+    const blob = await get(pathnameFromBlobUrl(doc.sourceUrl), {
+      access: "private",
+    });
+    if (!blob || blob.statusCode !== 200) {
+      throw new Error(`download falhou: HTTP ${blob?.statusCode ?? 404}`);
+    }
+    const buffer = Buffer.from(await new Response(blob.stream).arrayBuffer());
+    const mime = blob.blob.contentType ?? "";
 
     const text = await extractText(buffer, mime, doc.name);
     const parts = chunkText(text);
@@ -167,4 +172,12 @@ export async function GET(request: NextRequest) {
     .limit(1);
   if (!rows[0]) return NextResponse.json({ error: "not found" }, { status: 404 });
   return NextResponse.json(rows[0]);
+}
+
+function pathnameFromBlobUrl(url: string): string {
+  try {
+    return new URL(url).pathname.replace(/^\/+/, "");
+  } catch {
+    return url.replace(/^\/+/, "");
+  }
 }

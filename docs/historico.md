@@ -23,6 +23,17 @@ Consequência: o professor já consegue gerar prova real em produção e os prin
 
 ---
 
+## 2026-05-16 — Vercel Blob privado para materiais
+
+- Confirmado Blob Store `nexus-materials` conectado ao projeto `claude-code-teste` com `BLOB_READ_WRITE_TOKEN`.
+- Ajustado provider de storage e upload de materiais para `access: "private"`, compatível com o store privado.
+- `/api/material/process` passou a baixar material privado com `get()` do `@vercel/blob`, em vez de `fetch()` direto na URL privada.
+- `/api/material/upload` resolve `tenantId` no servidor, via sessão/contexto, em vez de confiar em payload do cliente.
+
+Consequência: uploads passam a respeitar o store privado da Vercel e ficam mais alinhados com LGPD/material escolar sensível.
+
+---
+
 ## 2026-05-16 — Logout visível nas áreas autenticadas
 
 - Adicionado `LogoutButton` compartilhado em `src/components/shell/logout-button.tsx`, usando `signOut()` do NextAuth e redirecionando para `/entrar`.

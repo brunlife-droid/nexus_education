@@ -112,11 +112,10 @@ export function MaterialPanel({
     setUploading(true);
     try {
       const blob = await upload(`materials/${classId}/${file.name}`, file, {
-        access: "public",
+        access: "private",
         handleUploadUrl: "/api/material/upload",
         clientPayload: JSON.stringify({
           classId,
-          tenantId: "", // backend resolve via session/tenant context
         }),
       });
 

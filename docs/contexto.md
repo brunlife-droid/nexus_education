@@ -18,14 +18,14 @@
   - `NEXTAUTH_URL` ✅
   - `NEXTAUTH_SECRET` ✅
 - **Pendente pra fechar produção**:
-  - `BLOB_READ_WRITE_TOKEN` — depende de provisionar Vercel Blob no projeto (Storage → Create → Blob). Sem isso, upload de material PDF/DOCX vai falhar.
+  - `BLOB_READ_WRITE_TOKEN` ✅ (`nexus-materials`, Blob privado em GRU1)
   - Validação end-to-end: subir material real, conversar com a tutora pra confirmar que ela usa o trecho RAG.
 - **Teste de produção em 2026-05-16**:
   - Home e `/entrar` responderam `200 OK`.
   - Login demo professor/aluno funcionou; `/professor`, `/aluno/chat` e `/aluno/historico` abriram autenticadas.
   - `/api/llm-health` respondeu com OpenRouter real (`anthropic/claude-haiku-4-5`, `sample: "pong"`).
   - Rotas SSE (`/api/chat`, `/api/lesson-plan`, `/api/essay-correction`) foram corrigidas e validadas em produção com respostas `200 OK`. Elas agora usam `complete()` + `createBufferedSseResponse()` e mantêm o contrato de linhas `data: ...` consumido pelo frontend.
-  - Bruno já pode testar login, chat do aluno, copiloto do professor e correção de redação em produção. Upload de material ainda depende do Vercel Blob (`BLOB_READ_WRITE_TOKEN`).
+  - Bruno já pode testar login, chat do aluno, copiloto do professor, correção de redação e gerador de prova em produção. Upload de material usa Vercel Blob privado (`nexus-materials`).
 
 ---
 

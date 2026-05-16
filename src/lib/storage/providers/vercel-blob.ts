@@ -14,7 +14,7 @@ export const vercelBlobProvider: StorageProvider = {
     const originalName = file instanceof File ? file.name : "blob";
     const pathname = buildPathname(options, originalName);
     const result = await put(pathname, file, {
-      access: "public", // ajustar quando privateAccess: true
+      access: "private",
       addRandomSuffix: false, // já temos randomToken no pathname
       contentType: file.type || undefined,
     });

@@ -26,6 +26,7 @@ import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { classes, documents } from "@/lib/db/schema";
+import { getCurrentTenant } from "@/lib/tenants/server";
 
 const ALLOWED_MIME = [
   "application/pdf",
@@ -60,8 +61,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         const parsed = clientPayload ? JSON.parse(clientPayload) : {};
         const classId = String(parsed.classId ?? "");
-        const tenantId = String(parsed.tenantId ?? "");
-        if (!classId || !tenantId) throw new Error("classId/tenantId ausente");
+        const tenant = await getCurrentTenant();
+        const tenantId = tenant.id;
+        if (!classId) throw new Error("classId ausente");
 
         // Confirma que a turma pertence ao tenant antes de emitir token.
         if (process.env.DATABASE_URL) {
