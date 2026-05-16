@@ -19,12 +19,18 @@ import {
   schools,
   studentProficiency,
   students,
+  users,
 } from "@/lib/db/schema";
 import { ensureNetworkSeeded } from "@/lib/db/seed-network";
 
 function dbAvailable(): boolean {
   return !!process.env.DATABASE_URL;
 }
+
+const DEMO_TENANT_ID = "alfenas";
+const DEMO_TEACHER_ID = "u-ricardo";
+const DEMO_SCHOOL_ID = "school-demo-alfenas";
+const DEMO_CLASS_ID = "class-demo-7a";
 
 export interface TeacherContext {
   classes: Array<{ id: string; name: string; grade: string; schoolName: string }>;
@@ -38,7 +44,8 @@ export async function loadTeacherContext(input: {
   if (!dbAvailable()) return { classes: [], classIds: [] };
   try {
     await ensureNetworkSeeded();
-    const rows = await db()
+    const d = db();
+    let rows = await d
       .select({
         id: classes.id,
         name: classes.name,
@@ -54,11 +61,113 @@ export async function loadTeacherContext(input: {
           eq(memberships.tenantId, input.tenantId),
         ),
       );
+
+    if (rows.length === 0 && isDemoTeacher(input)) {
+      await repairDemoTeacherScope();
+      rows = await d
+        .select({
+          id: classes.id,
+          name: classes.name,
+          grade: classes.grade,
+          schoolName: schools.name,
+        })
+        .from(memberships)
+        .innerJoin(classes, eq(classes.id, memberships.classId))
+        .innerJoin(schools, eq(schools.id, classes.schoolId))
+        .where(
+          and(
+            eq(memberships.userId, input.userId),
+            eq(memberships.tenantId, input.tenantId),
+          ),
+        );
+
+      if (rows.length === 0) return demoTeacherContext();
+    }
+
     return { classes: rows, classIds: rows.map((r) => r.id) };
   } catch (err) {
     console.error("[teacher/queries] loadTeacherContext failed:", err);
+    if (isDemoTeacher(input)) return demoTeacherContext();
     return { classes: [], classIds: [] };
   }
+}
+
+function isDemoTeacher(input: { userId: string; tenantId: string }): boolean {
+  return input.userId === DEMO_TEACHER_ID && input.tenantId === DEMO_TENANT_ID;
+}
+
+function demoTeacherContext(): TeacherContext {
+  return {
+    classes: [
+      {
+        id: DEMO_CLASS_ID,
+        name: "7º A",
+        grade: "7",
+        schoolName: "EM Padre Eustáquio",
+      },
+    ],
+    classIds: [DEMO_CLASS_ID],
+  };
+}
+
+async function repairDemoTeacherScope(): Promise<void> {
+  const d = db();
+
+  await d
+    .insert(schools)
+    .values({
+      id: DEMO_SCHOOL_ID,
+      tenantId: DEMO_TENANT_ID,
+      name: "EM Padre Eustáquio",
+    })
+    .onConflictDoNothing();
+
+  await d
+    .insert(classes)
+    .values({
+      id: DEMO_CLASS_ID,
+      tenantId: DEMO_TENANT_ID,
+      schoolId: DEMO_SCHOOL_ID,
+      name: "7º A",
+      grade: "7",
+      year: new Date().getFullYear(),
+    })
+    .onConflictDoNothing();
+
+  await d
+    .insert(users)
+    .values({
+      id: DEMO_TEACHER_ID,
+      email: "ricardo@alfenas.demo",
+      name: "Ricardo Marques",
+    })
+    .onConflictDoNothing();
+
+  await d
+    .insert(memberships)
+    .values({
+      id: `mem-${DEMO_TEACHER_ID}`,
+      userId: DEMO_TEACHER_ID,
+      tenantId: DEMO_TENANT_ID,
+      role: "professor",
+      schoolId: DEMO_SCHOOL_ID,
+      classId: DEMO_CLASS_ID,
+    })
+    .onConflictDoNothing();
+
+  await d
+    .update(memberships)
+    .set({
+      schoolId: DEMO_SCHOOL_ID,
+      classId: DEMO_CLASS_ID,
+    })
+    .where(
+      and(
+        eq(memberships.userId, DEMO_TEACHER_ID),
+        eq(memberships.tenantId, DEMO_TENANT_ID),
+        eq(memberships.role, "professor"),
+      ),
+    );
 }
 
 export interface TeacherKpis {

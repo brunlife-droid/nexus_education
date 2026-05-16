@@ -103,6 +103,7 @@ Pra evitar Server Components fazerem Drizzle direto, cada área tem um módulo d
 - `src/lib/admin/queries.ts` (futuro).
 
 Todas as queries seguem o mesmo contrato: graceful (sem DATABASE_URL → retorno vazio), `ensureNetworkSeeded()` chamado no entry point pra garantir dado demo.
+Exceção controlada de demo: `loadTeacherContext()` repara/faz fallback do vínculo `u-ricardo` → `class-demo-7a` quando o Neon estiver com membership antigo sem `class_id`, para não bloquear a validação de produção.
 
 ### Capabilities LLM ativas
 Cada capability tem rota e prompt versionado. **Em runtime, o gateway lê a rota e o prompt ativos do DB via `src/lib/llm/config.ts`**, caindo no hardcoded (`routes.ts`/`prompts/*.ts`) quando o DB não tem registro ou está indisponível. Isso permite editar config (provider, modelo, temperature, maxTokens, prompt) **sem deploy** pela tela `/admin/configuracoes/llm`.
