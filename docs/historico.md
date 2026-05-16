@@ -6,6 +6,29 @@
 
 ---
 
+## 2026-05-16 — Hooks de continuidade entre sessões (.claude/hooks/)
+
+Bruno levantou o problema real: cada nova conversa do Claude começa do zero, e mesmo com `CLAUDE.md` mandando ler os docs vivos, o Claude às vezes pula (eu mesmo pulei na sessão anterior, levou Bruno a perguntar "você está salvando isso?"). Solução: hooks programáticos no `.claude/settings.json` do projeto — executados pelo harness do Claude Code, não por mim, então não dependem de eu lembrar.
+
+**Hook `SessionStart` (`.claude/hooks/inject-docs.sh`)**
+- Dispara automaticamente quando uma sessão começa nesse repo.
+- Lê `docs/contexto.md`, `docs/arquitetura.md`, `docs/historico.md` e injeta tudo via `hookSpecificOutput.additionalContext` — o conteúdo aparece no contexto do modelo como mensagem de sistema, antes da primeira fala do usuário.
+- Não tem como o Claude "esquecer" de ler. Está garantido.
+
+**Hook `Stop` (`.claude/hooks/check-historico.sh`)**
+- Dispara quando o agente tenta encerrar o turno.
+- Checa `git diff HEAD` + `git diff --cached`. Se há mudança em `src/`, `drizzle/migrations/`, `package.json` ou `package-lock.json` mas `docs/historico.md` está intocado → retorna `{"decision":"block","reason":"..."}` e o modelo é obrigado a continuar trabalhando (com o reason como feedback).
+- Estado limpo (sem código modificado) → sai vazio, deixa parar normal.
+- Código modificado + historico também modificado → deixa parar normal.
+
+**Por quê assim:** o usuário é fundador não-técnico que troca de sessão com frequência. Cada sessão perdida é trabalho que se repete. Esses dois hooks fecham as duas pontas: leitura forçada na entrada, escrita forçada na saída. O `CLAUDE.md` continua sendo a documentação humana do workflow; os hooks são a barreira de cinto.
+
+**Convenções**: scripts em `.claude/hooks/` são `chmod +x`, usam `set -euo pipefail`, fazem `cd` pro root do repo via `$(dirname "$0")/../..` (paths relativos a partir daí). Settings em `.claude/settings.json` (commitado); overrides pessoais em `.claude/settings.local.json` (gitignored — já estava).
+
+**Caveat operacional**: hooks novos só passam a valer em sessões **novas** (depois desse commit estar na main). A sessão atual em que criei os hooks não está sujeita a eles. Próxima conversa do Bruno vai ver os docs injetados automaticamente no início.
+
+---
+
 ## 2026-05-15 — Subida da v4.3 / RAG / admin LLM em produção (infra)
 
 Sessão operacional, sem código novo — só infra pra colocar a entrega anterior no ar.
