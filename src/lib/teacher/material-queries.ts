@@ -14,6 +14,7 @@ import {
   documents,
   habilities,
 } from "@/lib/db/schema";
+import { HABILIDADES_BNCC } from "@/lib/mocks";
 
 function dbAvailable(): boolean {
   return !!process.env.DATABASE_URL;
@@ -55,7 +56,7 @@ export async function loadClassFocus(input: {
 }
 
 export async function loadAvailableHabilities(): Promise<FocusSkill[]> {
-  if (!dbAvailable()) return [];
+  if (!dbAvailable()) return demoAvailableHabilities();
   try {
     const rows = await db()
       .select({
@@ -65,11 +66,21 @@ export async function loadAvailableHabilities(): Promise<FocusSkill[]> {
         grade: habilities.grade,
       })
       .from(habilities);
+    if (rows.length === 0) return demoAvailableHabilities();
     return rows.sort((a, b) => a.code.localeCompare(b.code));
   } catch (err) {
     console.error("[material-queries] loadAvailableHabilities failed:", err);
-    return [];
+    return demoAvailableHabilities();
   }
+}
+
+function demoAvailableHabilities(): FocusSkill[] {
+  return HABILIDADES_BNCC.map((h) => ({
+    code: h.codigo,
+    area: h.area,
+    description: h.desc,
+    grade: "7",
+  })).sort((a, b) => a.code.localeCompare(b.code));
 }
 
 export interface ClassMaterial {

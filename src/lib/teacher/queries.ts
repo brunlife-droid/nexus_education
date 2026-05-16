@@ -22,6 +22,7 @@ import {
   users,
 } from "@/lib/db/schema";
 import { ensureNetworkSeeded } from "@/lib/db/seed-network";
+import { ALUNOS_7A, HABILIDADES_BNCC } from "@/lib/mocks";
 
 function dbAvailable(): boolean {
   return !!process.env.DATABASE_URL;
@@ -181,6 +182,7 @@ export async function loadDashboardKpis(input: {
   classIds: string[];
 }): Promise<TeacherKpis> {
   if (!dbAvailable() || input.classIds.length === 0) {
+    if (hasDemoClass(input)) return demoDashboardKpis();
     return { studentsTotal: 0, engagedThisWeek: 0, atRisk: { count: 0, names: [] } };
   }
   try {
@@ -232,7 +234,7 @@ export async function loadDashboardKpis(input: {
       .orderBy(sql`avg(${studentProficiency.score}) asc`)
       .limit(5);
 
-    return {
+    const result = {
       studentsTotal: totalRow?.n ?? 0,
       engagedThisWeek: engagedRows.length,
       atRisk: {
@@ -240,8 +242,13 @@ export async function loadDashboardKpis(input: {
         names: riskRows.map((r) => r.fullName.split(" ").slice(0, 2).join(" ")),
       },
     };
+    if (result.studentsTotal === 0 && hasDemoClass(input)) {
+      return demoDashboardKpis();
+    }
+    return result;
   } catch (err) {
     console.error("[teacher/queries] loadDashboardKpis failed:", err);
+    if (hasDemoClass(input)) return demoDashboardKpis();
     return { studentsTotal: 0, engagedThisWeek: 0, atRisk: { count: 0, names: [] } };
   }
 }
@@ -258,7 +265,10 @@ export async function loadTopStudents(input: {
   classIds: string[];
   limit?: number;
 }): Promise<TopStudent[]> {
-  if (!dbAvailable() || input.classIds.length === 0) return [];
+  if (!dbAvailable() || input.classIds.length === 0) {
+    if (hasDemoClass(input)) return demoTopStudents(input.limit);
+    return [];
+  }
   try {
     const rows = await db()
       .select({
@@ -280,6 +290,9 @@ export async function loadTopStudents(input: {
       .groupBy(students.id, students.fullName)
       .orderBy(desc(sql`avg(${studentProficiency.score})`))
       .limit(input.limit ?? 3);
+    if (rows.length === 0 && hasDemoClass(input)) {
+      return demoTopStudents(input.limit);
+    }
     return rows.map((r) => ({
       id: r.id,
       name: r.name,
@@ -288,6 +301,7 @@ export async function loadTopStudents(input: {
     }));
   } catch (err) {
     console.error("[teacher/queries] loadTopStudents failed:", err);
+    if (hasDemoClass(input)) return demoTopStudents(input.limit);
     return [];
   }
 }
@@ -328,7 +342,10 @@ export async function loadClassHeatmap(input: {
   tenantId: string;
   classId: string;
 }): Promise<ClassHeatmap> {
-  if (!dbAvailable()) return { habilities: [], rows: [] };
+  if (!dbAvailable()) {
+    if (isDemoClass(input)) return demoClassHeatmap();
+    return { habilities: [], rows: [] };
+  }
   try {
     const d = db();
 
@@ -345,7 +362,10 @@ export async function loadClassHeatmap(input: {
         ),
       );
 
-    if (habsRows.length === 0) return { habilities: [], rows: [] };
+    if (habsRows.length === 0) {
+      if (isDemoClass(input)) return demoClassHeatmap();
+      return { habilities: [], rows: [] };
+    }
 
     const habCodes = habsRows.map((h) => h.code);
 
@@ -406,6 +426,7 @@ export async function loadClassHeatmap(input: {
     return { habilities: habInfo, rows };
   } catch (err) {
     console.error("[teacher/queries] loadClassHeatmap failed:", err);
+    if (isDemoClass(input)) return demoClassHeatmap();
     return { habilities: [], rows: [] };
   }
 }
@@ -424,7 +445,10 @@ export async function loadClassRoster(input: {
   tenantId: string;
   classId: string;
 }): Promise<RosterEntry[]> {
-  if (!dbAvailable()) return [];
+  if (!dbAvailable()) {
+    if (isDemoClass(input)) return demoClassRoster();
+    return [];
+  }
   try {
     const d = db();
 
@@ -467,6 +491,10 @@ export async function loadClassRoster(input: {
       activityRows.map((r) => [r.studentId, r] as const),
     );
 
+    if (baseRows.length === 0 && isDemoClass(input)) {
+      return demoClassRoster();
+    }
+
     return baseRows
       .map((r) => {
         const a = activityMap.get(r.id);
@@ -483,6 +511,94 @@ export async function loadClassRoster(input: {
       .sort((a, b) => b.avgScore - a.avgScore);
   } catch (err) {
     console.error("[teacher/queries] loadClassRoster failed:", err);
+    if (isDemoClass(input)) return demoClassRoster();
     return [];
   }
+}
+
+function isDemoClass(input: { tenantId: string; classId: string }): boolean {
+  return input.tenantId === DEMO_TENANT_ID && input.classId === DEMO_CLASS_ID;
+}
+
+function hasDemoClass(input: { tenantId: string; classIds: string[] }): boolean {
+  return (
+    input.tenantId === DEMO_TENANT_ID && input.classIds.includes(DEMO_CLASS_ID)
+  );
+}
+
+function demoDashboardKpis(): TeacherKpis {
+  const atRisk = ALUNOS_7A.filter((a) => a.risco);
+  return {
+    studentsTotal: ALUNOS_7A.length,
+    engagedThisWeek: ALUNOS_7A.filter((a) => a.acessos > 0).length,
+    atRisk: {
+      count: atRisk.length,
+      names: atRisk.map((a) => a.nome.split(" ").slice(0, 2).join(" ")),
+    },
+  };
+}
+
+function demoTopStudents(limit = 3): TopStudent[] {
+  return demoClassRoster()
+    .sort((a, b) => b.avgScore - a.avgScore)
+    .slice(0, limit)
+    .map((student) => ({
+      id: student.studentId,
+      name: student.fullName,
+      initials: student.initials,
+      avgScore: student.avgScore,
+    }));
+}
+
+function demoClassHeatmap(): ClassHeatmap {
+  return {
+    habilities: HABILIDADES_BNCC.map((h) => ({
+      code: h.codigo,
+      area: h.area,
+      description: h.desc,
+    })),
+    rows: ALUNOS_7A.map((student) => ({
+      studentId: demoStudentId(student.id),
+      studentName: student.nome,
+      cells: HABILIDADES_BNCC.map((h, i) => ({
+        habilityCode: h.codigo,
+        score: demoScoreFor(student.prof, i),
+      })),
+    })),
+  };
+}
+
+function demoClassRoster(): RosterEntry[] {
+  return ALUNOS_7A.map((student, i) => {
+    const avgScore = demoScoreFor(student.prof, i);
+    return {
+      studentId: demoStudentId(student.id),
+      fullName: student.nome,
+      initials: initialsOf(student.nome),
+      avgScore,
+      proficiency: scoreToProficiency(avgScore),
+      conversationCount: student.acessos,
+      lastActivity: new Date(Date.now() - (i + 1) * 60 * 60 * 1000),
+    };
+  }).sort((a, b) => b.avgScore - a.avgScore);
+}
+
+function demoStudentId(id: string): string {
+  return id === "a1" ? "student-joao" : `student-${id}`;
+}
+
+function demoScoreFor(
+  base: "avancada" | "adequada" | "basica" | "insuficiente",
+  i: number,
+): number {
+  const baseScore =
+    base === "avancada"
+      ? 0.88
+      : base === "adequada"
+        ? 0.7
+        : base === "basica"
+          ? 0.5
+          : 0.3;
+  const jitter = ((i * 7) % 13) / 100 - 0.06;
+  return Number(Math.max(0.05, Math.min(0.98, baseScore + jitter)).toFixed(2));
 }
