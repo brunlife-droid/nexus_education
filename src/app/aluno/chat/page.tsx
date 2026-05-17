@@ -1,5 +1,6 @@
 import {
   ChatClient,
+  type ChatFileAttachment,
   type ChatClientMessage,
   type MessageSource,
 } from "@/components/phone/chat-client";
@@ -10,6 +11,7 @@ import { resolveStudentId } from "@/lib/db/student-resolver";
 import {
   loadMessages,
   getConversationOwner,
+  type MediaMessageAttachment,
   type MessageSourceAttachment,
   type PersistedMessage,
 } from "@/lib/chat/persistence";
@@ -38,6 +40,30 @@ function sourceAttachments(
     }));
 
   return sources && sources.length > 0 ? sources : undefined;
+}
+
+function mediaAttachments(
+  attachments: PersistedMessage["attachments"],
+): ChatFileAttachment[] | undefined {
+  const media = attachments
+    ?.filter(
+      (attachment): attachment is MediaMessageAttachment =>
+        attachment.kind === "image" ||
+        attachment.kind === "audio" ||
+        attachment.kind === "document",
+    )
+    .map((attachment) => ({
+      kind: attachment.kind,
+      url: attachment.url,
+      mime: attachment.mime,
+      name: attachment.name,
+      size: attachment.size,
+      transcript: attachment.transcript,
+      extractedText: attachment.extractedText,
+      analysisError: attachment.analysisError,
+    }));
+
+  return media && media.length > 0 ? media : undefined;
 }
 
 export default async function ChatPage({ searchParams }: PageProps) {
@@ -70,6 +96,7 @@ export default async function ChatPage({ searchParams }: PageProps) {
             role: m.role as "user" | "assistant",
             content: m.content,
             hora: formatTime(m.createdAt),
+            attachments: mediaAttachments(m.attachments),
             sources: sourceAttachments(m.attachments),
           }));
       }

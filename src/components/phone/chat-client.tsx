@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, type FormEvent } from "react";
+import Link from "next/link";
 import {
   ArrowUp,
   FileText,
@@ -20,12 +21,23 @@ export interface MessageSource {
   score: number;
 }
 
+export interface ChatFileAttachment {
+  kind: "image" | "audio" | "document";
+  url: string;
+  mime: string;
+  name?: string;
+  size?: number;
+  transcript?: string;
+  extractedText?: string;
+  analysisError?: string;
+}
+
 export interface ChatClientMessage {
   role: "user" | "assistant";
   content: string;
   hora?: string;
   streaming?: boolean;
-  imageUrl?: string;
+  attachments?: ChatFileAttachment[];
   sources?: MessageSource[];
 }
 
@@ -66,6 +78,18 @@ function normalizeSources(value: unknown): MessageSource[] {
     }));
 }
 
+function attachmentKindFor(file: File): ChatFileAttachment["kind"] {
+  if (file.type.startsWith("image/")) return "image";
+  if (file.type.startsWith("audio/")) return "audio";
+  return "document";
+}
+
+function uploadPromptFor(kind: ChatFileAttachment["kind"]): string {
+  if (kind === "image") return "Analise esta imagem e me ajude a estudar.";
+  if (kind === "audio") return "Transcreva este audio e me ajude a estudar.";
+  return "Analise este documento e me ajude a estudar.";
+}
+
 export function ChatClient({
   tenant,
   initialMessages,
@@ -92,17 +116,27 @@ export function ChatClient({
     const now = formatTime(new Date());
 
     try {
+      const kind = attachmentKindFor(file);
       const form = new FormData();
       form.append("file", file);
-      form.append("kind", "image");
+      form.append("kind", kind);
       const res = await fetch("/api/upload", { method: "POST", body: form });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "upload failed");
 
+      const typedText = input.trim();
       const userMsg: ChatClientMessage = {
         role: "user",
-        content: "Olha essa questão pra mim:",
-        imageUrl: data.file.url,
+        content: typedText || uploadPromptFor(kind),
+        attachments: [
+          {
+            kind,
+            url: data.file.url,
+            mime: data.file.contentType || file.type,
+            name: file.name,
+            size: data.file.size ?? file.size,
+          },
+        ],
         hora: now,
       };
       const placeholder: ChatClientMessage = {
@@ -113,6 +147,7 @@ export function ChatClient({
       };
       const next = [...messages, userMsg, placeholder];
       setMessages(next);
+      setInput("");
 
       await streamReply(next);
     } catch (err) {
@@ -122,7 +157,7 @@ export function ChatClient({
         {
           role: "assistant",
           content:
-            "Não consegui receber sua foto agora. Tente de novo, por favor.",
+            "Não consegui receber seu arquivo agora. Tente de novo, por favor.",
           hora: now,
         },
       ]);
@@ -143,7 +178,8 @@ export function ChatClient({
             .filter((m) => !m.streaming)
             .map((m) => ({
               role: m.role,
-              content: m.imageUrl ? `[foto enviada] ${m.content}` : m.content,
+              content: m.content,
+              attachments: m.attachments,
             })),
         }),
       });
@@ -338,6 +374,18 @@ export function ChatClient({
                   Ouvir em áudio
                 </Chip>
               </button>
+              <Link
+                href={
+                  conversationId
+                    ? `/aluno/estudo?conversationId=${conversationId}`
+                    : "/aluno/estudo"
+                }
+              >
+                <Chip className="hover:bg-surface-3">
+                  <FileText size={11} />
+                  Criar estudo
+                </Chip>
+              </Link>
             </div>
           )}
         </div>
@@ -348,7 +396,7 @@ export function ChatClient({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,audio/*,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,.md,.txt,.docx"
           className="hidden"
           onChange={handleFileChange}
         />
@@ -384,7 +432,9 @@ export function ChatClient({
 
             <button
               type="button"
-              aria-label="Gravar áudio"
+              aria-label="Enviar áudio"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading || sending}
               className="text-text-muted hover:bg-surface-2 shrink-0 rounded-md p-2 transition-colors"
             >
               <Mic size={18} />
@@ -426,14 +476,12 @@ function MessageBubble({
   if (message.role === "user") {
     return (
       <div className="flex flex-col items-end gap-1.5">
-        {message.imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={message.imageUrl}
-            alt="Foto enviada"
-            className="border-border max-h-[300px] max-w-[60%] rounded-2xl rounded-tr-md border object-cover shadow-[var(--shadow-sm)]"
+        {message.attachments?.map((attachment, index) => (
+          <AttachmentPreview
+            key={`${attachment.url}-${index}`}
+            attachment={attachment}
           />
-        )}
+        ))}
         {message.content && (
           <div className="bg-surface-2 max-w-[80%] rounded-2xl rounded-tr-md px-4 py-3 text-[15px] leading-relaxed">
             {message.content}
@@ -475,6 +523,44 @@ function MessageBubble({
         )}
       </div>
       <style>{`@keyframes blink { 50% { opacity: 0 } }`}</style>
+    </div>
+  );
+}
+
+function AttachmentPreview({
+  attachment,
+}: {
+  attachment: ChatFileAttachment;
+}) {
+  if (attachment.kind === "image") {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={attachment.url}
+        alt={attachment.name ?? "Imagem enviada"}
+        className="border-border max-h-[300px] max-w-[60%] rounded-2xl rounded-tr-md border object-cover shadow-[var(--shadow-sm)]"
+      />
+    );
+  }
+
+  if (attachment.kind === "audio") {
+    return (
+      <div className="border-border bg-surface-2 w-full max-w-[360px] rounded-2xl rounded-tr-md border p-3 shadow-[var(--shadow-sm)]">
+        <div className="text-text-muted mb-2 flex items-center gap-2 text-xs">
+          <Mic size={13} />
+          <span className="truncate">{attachment.name ?? "Áudio enviado"}</span>
+        </div>
+        <audio controls src={attachment.url} className="w-full" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-border bg-surface-2 text-text-muted flex max-w-[360px] items-center gap-2 rounded-2xl rounded-tr-md border px-4 py-3 text-sm shadow-[var(--shadow-sm)]">
+      <FileText size={16} className="shrink-0" />
+      <span className="min-w-0 truncate">
+        {attachment.name ?? "Documento enviado"}
+      </span>
     </div>
   );
 }

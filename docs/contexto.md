@@ -2,7 +2,7 @@
 
 > **Atualizar este arquivo sempre que o estado do projeto mudar.** Foto rápida do que está pronto, o que está em andamento e o que ainda não foi tocado.
 >
-> Última atualização: 2026-05-16 (A1/A4/A5/A6 aluno reais)
+> Última atualização: 2026-05-16 (chat multimodal + artefatos de estudo)
 
 ---
 
@@ -53,6 +53,8 @@
 - **P3 Correção de redação**: `/professor/correcao` analisa texto colado nas 5 competências ENEM (GPT-4o-mini via OpenRouter, fallback Haiku). Form com nome do aluno + tema + textarea + botão. Resultado grava artefato best-effort em `audit_log`.
 - **P4 Gerador de prova real**: `/professor/provas` chama `/api/exam-generation` via capability `exam_generation`, gerando prova com matriz BNCC, versões e gabarito comentado. Permite copiar ou baixar `.md`; grava artefato best-effort em `audit_log`.
 - **Tutora v4.3 socrática + RAG da turma**: prompt do `chat_student` reescrito com regras explícitas de não entregar resposta antes do aluno tentar. Slots `{{foco_pedagogico}}` (de `class_focus_skills`) e `{{contexto_material}}` (top-3 chunks via pgvector) injetados pelo `/api/chat`. Quando há material relevante, o chat do aluno mostra chips de fonte abaixo da resposta e persiste essa metadata na mensagem. Sem material relevante → tutora segue com base ampla.
+- **Chat multimodal do aluno**: `/api/chat` aceita anexos reais (`image`, `audio`, `document`) vindos do upload. Imagens são carregadas do Blob privado e enviadas ao gateway como parte multimodal; áudios são transcritos via OpenAI quando `OPENAI_API_KEY` está presente; PDFs/DOCX/TXT/MD têm texto extraído antes da chamada LLM. A mensagem do aluno persiste metadata do anexo em `messages.attachments`, e a ação é auditada em `audit_log` como `student.chat.attachment_analyze`.
+- **Artefatos de estudo do aluno**: `/aluno/estudo` gera cartões de estudo, quiz interativo e resumo guiado via capability `student_artifact_generation`. A rota `/api/student-artifacts` usa `complete()` pelo gateway, aceita tema ou conversa como fonte e salva o resultado best-effort em `audit_log` (`student_artifact.create`) para evitar migration nova.
 - **Material da turma no `/professor/turma`**: card com multi-select de habilidades BNCC pra foco + upload (PDF/DOCX/TXT/MD até 50MB) com status (pendente/processando/pronto/falhou), remoção e reprocessamento manual quando falha. Upload direto pro Vercel Blob via signed URL (`@vercel/blob/client`); `/api/material/process` extrai texto + chunks + embeddings (`text-embedding-3-small`).
 - **Config macro LLM no admin**: `/admin/configuracoes/llm` (papel `admin_nexus`) edita provider/modelo/temperature/maxTokens/fallback por capability e prompts versionados. Mudanças aplicam imediatamente (gateway lê DB com cache por request). Cai no fallback hardcoded sem DB ou sem registro.
 
@@ -65,8 +67,8 @@
 - Persistência de planos/provas/correções ainda usa `audit_log` como trilha best-effort; falta tabela dedicada para editar, compartilhar, versionar e buscar artefatos
 - Telas Secretaria S2-S9 e Admin N2-N7/N9: mockadas (N8 e N8b agora reais)
 - IDEB gráfico e Indicadores Nexus na S1 seguem com dados do mock
-- Chat multimodal real ainda não está fechado: upload de imagem existe e persiste Blob, mas a IA ainda recebe apenas marcador textual; áudio/OCR/documentos do aluno e análise visual/audio pelo gateway LLM ficam para a próxima fatia.
-- Artefatos de estudo do aluno (cartões, quiz interativo, resumo guiado estilo NotebookLM) ainda não têm tabela/UX própria. Devem reutilizar o gateway `src/lib/llm/` e preferencialmente nascer como artefatos persistidos do aluno, não como mock.
+- Captura de áudio ao vivo no navegador, TTS de resposta, OCR dedicado para PDF/imagem escaneada e o canal WhatsApp multimodal ainda não foram fechados; hoje o fluxo web já aceita envio de arquivo de áudio e documentos textuais.
+- Artefatos de estudo do aluno usam `audit_log` como persistência best-effort. Ainda falta tabela dedicada para busca avançada, edição, compartilhamento com professor e versionamento.
 - `audit_log`: já recebe artefatos LLM do professor e fallback de leitura de mural do aluno; ainda faltam writes para todas as ações sensíveis.
 - Override de config LLM por tenant (hoje só macro global)
 

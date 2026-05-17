@@ -1,6 +1,7 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText, streamText } from "ai";
 import type {
+  ChatContent,
   ChatCompletionRequest,
   ChatCompletionResponse,
   ModelId,
@@ -37,13 +38,38 @@ function client() {
   });
 }
 
+function textFromContent(content: ChatContent): string {
+  if (typeof content === "string") return content;
+  return content
+    .filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join("\n");
+}
+
+function aiSdkContent(content: ChatContent) {
+  if (typeof content === "string") return content;
+  return content.map((part) => {
+    if (part.type === "image") {
+      return {
+        type: "image",
+        image: part.image,
+        mediaType: part.mimeType,
+      };
+    }
+    return part;
+  }) as unknown as string;
+}
+
 export async function openrouterComplete(
   req: ChatCompletionRequest,
   modelId: string,
 ): Promise<ChatCompletionResponse> {
   const start = Date.now();
   const openrouter = client();
-  const system = req.messages.find((m) => m.role === "system")?.content;
+  const systemMessage = req.messages.find((m) => m.role === "system");
+  const system = systemMessage
+    ? textFromContent(systemMessage.content)
+    : undefined;
   const conv = req.messages.filter((m) => m.role !== "system");
 
   const result = await generateText({
@@ -51,7 +77,7 @@ export async function openrouterComplete(
     system,
     messages: conv.map((m) => ({
       role: m.role as "user" | "assistant",
-      content: m.content,
+      content: aiSdkContent(m.content),
     })),
     temperature: req.temperature,
     maxOutputTokens: req.maxTokens,
@@ -73,7 +99,10 @@ export async function* openrouterStream(
 ): AsyncGenerator<StreamChunk> {
   const start = Date.now();
   const openrouter = client();
-  const system = req.messages.find((m) => m.role === "system")?.content;
+  const systemMessage = req.messages.find((m) => m.role === "system");
+  const system = systemMessage
+    ? textFromContent(systemMessage.content)
+    : undefined;
   const conv = req.messages.filter((m) => m.role !== "system");
 
   const stream = streamText({
@@ -81,7 +110,7 @@ export async function* openrouterStream(
     system,
     messages: conv.map((m) => ({
       role: m.role as "user" | "assistant",
-      content: m.content,
+      content: aiSdkContent(m.content),
     })),
     temperature: req.temperature,
     maxOutputTokens: req.maxTokens,

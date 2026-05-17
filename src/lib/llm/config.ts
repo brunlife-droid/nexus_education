@@ -20,6 +20,7 @@ import { db } from "@/lib/db";
 import { llmRoutes, systemPrompts } from "@/lib/db/schema";
 import { routeFor as routeForHardcoded } from "./routes";
 import { STUDENT_TUTOR_PROMPT } from "./prompts/student-tutor";
+import { STUDENT_ARTIFACTS_PROMPT } from "./prompts/student-artifacts";
 import { LESSON_PLAN_PROMPT } from "./prompts/lesson-plan";
 import { EXAM_GENERATION_PROMPT } from "./prompts/exam-generation";
 import { ESSAY_CORRECTION_PROMPT } from "./prompts/essay-correction";
@@ -74,6 +75,7 @@ export const loadRoute = cache(
 
 const HARDCODED_PROMPTS: Record<string, { version: string; content: string }> = {
   chat_student: STUDENT_TUTOR_PROMPT,
+  student_artifact_generation: STUDENT_ARTIFACTS_PROMPT,
   plan_generation: LESSON_PLAN_PROMPT,
   exam_generation: EXAM_GENERATION_PROMPT,
   essay_correction: ESSAY_CORRECTION_PROMPT,

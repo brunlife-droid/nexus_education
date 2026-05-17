@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BookOpen,
+  Brain,
   Layers,
   MessageSquarePlus,
   Megaphone,
@@ -30,6 +31,7 @@ const RECENT_CONVERSATIONS = [
 
 const SECTIONS = [
   { id: "trilha", label: "Minha trilha", href: "/aluno/trilha", icon: Layers },
+  { id: "estudo", label: "Estudo ativo", href: "/aluno/estudo", icon: Brain },
   { id: "mural", label: "Recados", href: "/aluno/mural", icon: Megaphone, badge: 2 },
   { id: "biblioteca", label: "Materiais", href: "/aluno/historico", icon: BookOpen },
 ];

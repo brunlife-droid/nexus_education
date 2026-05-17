@@ -51,6 +51,7 @@ const MODELS: Record<string, string[]> = {
 
 const CAPABILITY_LABEL: Record<string, string> = {
   chat_student: "Chat do aluno · tutora socrática",
+  student_artifact_generation: "Artefatos de estudo do aluno",
   plan_generation: "Geração de plano de aula",
   exam_generation: "Geração de prova",
   essay_correction: "Correção de redação",

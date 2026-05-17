@@ -1,4 +1,5 @@
 import type {
+  ChatContent,
   ChatCompletionRequest,
   ChatCompletionResponse,
   StreamChunk,
@@ -25,6 +26,9 @@ const RESPONSES: Record<string, string[]> = {
   exam_generation: [
     "# Prova - Matemática - 7º ano\n\n## Orientações ao aluno\nLeia com atenção, apresente os cálculos quando necessário e marque apenas uma alternativa nas questões objetivas.\n\n## Versão A\n\n1. (EF07MA04 - fácil - múltipla escolha) Qual fração é equivalente a 3/4?\nA) 6/8\nB) 5/6\nC) 7/9\nD) 9/16\n\n2. (EF07MA04 - médio - discursiva) Explique, com desenho ou cálculo, por que 2/6 e 4/12 representam a mesma quantidade.\n\n3. (EF07MA12 - médio - múltipla escolha) Em uma turma de 30 alunos, 2/5 são meninas. Quantos são meninos?\nA) 12\nB) 15\nC) 18\nD) 20\n\n## Gabarito comentado\n1. A - multiplicou numerador e denominador por 2.\n2. Espera-se identificar equivalência por simplificação ou multiplicação.\n3. C - 2/5 de 30 = 12 meninas; 18 meninos.",
   ],
+  student_artifact_generation: [
+    '{"title":"Revisao guiada","kind":"flashcards","cards":[{"front":"O que significa uma fracao equivalente?","back":"E uma fracao que representa a mesma parte do inteiro, mesmo com numeros diferentes.","hint":"Pense em dividir a mesma pizza em mais pedacos."},{"front":"Como criar uma fracao equivalente a 3/4?","back":"Multiplique numerador e denominador pelo mesmo numero, por exemplo 6/8.","hint":"O mesmo fator em cima e embaixo."},{"front":"Por que 2/4 e 1/2 sao equivalentes?","back":"Porque ambas representam metade do inteiro.","hint":"Simplifique 2/4 dividindo por 2."}]}',
+  ],
   bncc_classification: [
     '{"code":"EF07MA04","confidence":0.94,"area":"Matemática"}',
   ],
@@ -36,6 +40,18 @@ const RESPONSES: Record<string, string[]> = {
   ],
   embeddings_rag: ["[mock embedding]"],
 };
+
+function textFromContent(content: ChatContent): string {
+  if (typeof content === "string") return content;
+  return content
+    .filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join("\n");
+}
+
+function messageText(req: ChatCompletionRequest): string {
+  return req.messages.map((m) => textFromContent(m.content)).join("\n");
+}
 
 function pickResponse(capability: string, seed?: string): string {
   const options = RESPONSES[capability] ?? RESPONSES.chat_student;
@@ -51,13 +67,16 @@ export async function mockComplete(
   const start = Date.now();
   await new Promise((r) => setTimeout(r, 250 + Math.random() * 350));
   const lastUser = [...req.messages].reverse().find((m) => m.role === "user");
-  const text = pickResponse(req.capability, lastUser?.content);
+  const text = pickResponse(
+    req.capability,
+    lastUser ? textFromContent(lastUser.content) : undefined,
+  );
   return {
     text,
     model: "mock",
     provider: "mock",
     promptVersion: "mock",
-    inputTokens: req.messages.reduce((s, m) => s + Math.ceil(m.content.length / 4), 0),
+    inputTokens: Math.ceil(messageText(req).length / 4),
     outputTokens: Math.ceil(text.length / 4),
     latencyMs: Date.now() - start,
   };
@@ -68,7 +87,10 @@ export async function* mockStream(
 ): AsyncGenerator<StreamChunk> {
   const start = Date.now();
   const lastUser = [...req.messages].reverse().find((m) => m.role === "user");
-  const fullText = pickResponse(req.capability, lastUser?.content);
+  const fullText = pickResponse(
+    req.capability,
+    lastUser ? textFromContent(lastUser.content) : undefined,
+  );
   const words = fullText.split(/(\s+)/);
 
   for (const word of words) {
@@ -82,10 +104,7 @@ export async function* mockStream(
       model: "mock",
       provider: "mock",
       promptVersion: "mock",
-      inputTokens: req.messages.reduce(
-        (s, m) => s + Math.ceil(m.content.length / 4),
-        0,
-      ),
+      inputTokens: Math.ceil(messageText(req).length / 4),
       outputTokens: Math.ceil(fullText.length / 4),
       latencyMs: Date.now() - start,
     },

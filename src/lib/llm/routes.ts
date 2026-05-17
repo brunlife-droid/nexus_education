@@ -20,7 +20,14 @@ export const ROUTES: CapabilityRoute[] = [
     capability: "chat_student",
     provider: "openrouter",
     model: "anthropic/claude-haiku-4-5",
-    promptVersion: "v4.2",
+    promptVersion: "v4.3",
+    fallback: { provider: "openrouter", model: "google/gemini-2.5-flash" },
+  },
+  {
+    capability: "student_artifact_generation",
+    provider: "openrouter",
+    model: "anthropic/claude-haiku-4-5",
+    promptVersion: "v1.0",
     fallback: { provider: "openrouter", model: "google/gemini-2.5-flash" },
   },
   {

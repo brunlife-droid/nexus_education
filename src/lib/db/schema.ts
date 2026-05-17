@@ -392,10 +392,19 @@ export const messages = pgTable(
     latencyMs: integer("latency_ms"),
     // Habilidade BNCC classificada (se aplicável)
     habilityCode: text("hability_code"),
-    // Anexos (foto, áudio etc.) — referência por blob_url
+    // Anexos (foto, áudio, documento etc.) — referência por blob_url
     attachments: jsonb("attachments").$type<
       Array<
-        | { kind: "image" | "audio"; url: string; mime: string }
+        | {
+            kind: "image" | "audio" | "document";
+            url: string;
+            mime: string;
+            name?: string;
+            size?: number;
+            transcript?: string;
+            extractedText?: string;
+            analysisError?: string;
+          }
         | {
             kind: "source";
             documentId: string;

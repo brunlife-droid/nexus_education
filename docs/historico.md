@@ -6,6 +6,18 @@
 
 ---
 
+## 2026-05-16 — Chat multimodal e artefatos de estudo do aluno
+
+- `/api/chat` agora aceita anexos estruturados (`image`, `audio`, `document`) e prepara o conteúdo no servidor antes de chamar o gateway LLM: imagem vai como parte multimodal, áudio é transcrito pela API de transcrição da OpenAI quando há chave, e documentos usam extração de texto (`pdf-parse`/`mammoth`/texto).
+- O chat do aluno passou a enviar e reabrir anexos reais, com preview de imagem, áudio e documento, além de persistir metadata em `messages.attachments`.
+- Criada a capability `student_artifact_generation`, com prompt JSON próprio e rota `/api/student-artifacts` para gerar cartões, quiz e resumo guiado a partir de um tema ou conversa do aluno.
+- Nova página `/aluno/estudo` entrega a experiência interativa de cartões viráveis, quiz com feedback e resumo guiado; os artefatos são persistidos best-effort em `audit_log` com `action='student_artifact.create'`.
+- Ações sensíveis de análise de anexo registram `student.chat.attachment_analyze` em `audit_log` sem exigir migration nova.
+
+Consequência: a próxima validação de produção deixa de ser só chat textual; o aluno já consegue enviar mídia/documentos para a tutora analisar e transformar o material em estudo ativo.
+
+---
+
 ## 2026-05-16 — A1/A4/A5/A6 do aluno com dados reais
 
 - `/aluno/onboarding` deixou os dados fixos e passou a carregar aluno/escola/turma da sessão, salvar apelido em `students.nickname` e registrar consentimento em `consent_log`.

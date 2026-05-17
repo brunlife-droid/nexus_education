@@ -8,7 +8,7 @@ import type { StorageKind } from "@/lib/storage";
  * POST /api/upload
  *
  * Body: multipart/form-data com:
- *   - file: arquivo (foto, áudio, PDF, logo)
+ *   - file: arquivo (foto, áudio, PDF/DOCX/TXT, logo)
  *   - kind: "image" | "audio" | "document" | "logo"
  *   - ownerId: (opcional) id lógico do dono (conversation_id, student_id...)
  *
@@ -20,8 +20,9 @@ import type { StorageKind } from "@/lib/storage";
 
 const ALLOWED_TYPES: Record<StorageKind, RegExp> = {
   image: /^image\/(jpeg|png|webp|heic|heif)$/,
-  audio: /^audio\/(mpeg|mp4|webm|ogg|wav|x-m4a)$/,
-  document: /^application\/(pdf)$/,
+  audio: /^audio\/(mpeg|mp4|mpga|m4a|webm|ogg|wav|x-m4a|flac)$/,
+  document:
+    /^(application\/pdf|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document|text\/plain|text\/markdown)$/,
   logo: /^image\/(png|svg\+xml|webp)$/,
 };
 
@@ -54,9 +55,11 @@ export async function POST(request: NextRequest) {
   }
   const kind = kindRaw as StorageKind;
 
-  if (!ALLOWED_TYPES[kind].test(file.type)) {
+  const mime = file.type || inferMime(file.name);
+
+  if (!ALLOWED_TYPES[kind].test(mime)) {
     return NextResponse.json(
-      { error: `Tipo de arquivo não permitido para ${kind}: ${file.type}` },
+      { error: `Tipo de arquivo não permitido para ${kind}: ${mime}` },
       { status: 415 },
     );
   }
@@ -75,11 +78,25 @@ export async function POST(request: NextRequest) {
       kind,
       ownerId: typeof ownerId === "string" ? ownerId : undefined,
     });
-    return NextResponse.json({ ok: true, file: stored });
+    return NextResponse.json({
+      ok: true,
+      file: { ...stored, contentType: mime },
+    });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Falha no upload" },
       { status: 500 },
     );
   }
+}
+
+function inferMime(filename: string): string {
+  const lower = filename.toLowerCase();
+  if (lower.endsWith(".pdf")) return "application/pdf";
+  if (lower.endsWith(".docx")) {
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  }
+  if (lower.endsWith(".md")) return "text/markdown";
+  if (lower.endsWith(".txt")) return "text/plain";
+  return "application/octet-stream";
 }

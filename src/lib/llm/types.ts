@@ -12,6 +12,7 @@
 
 export type Capability =
   | "chat_student"
+  | "student_artifact_generation"
   | "plan_generation"
   | "exam_generation"
   | "essay_correction"
@@ -44,9 +45,15 @@ export interface CapabilityRoute {
   fallback?: { provider: ProviderId; model: ModelId };
 }
 
+export type ChatContentPart =
+  | { type: "text"; text: string }
+  | { type: "image"; image: string; mimeType?: string };
+
+export type ChatContent = string | ChatContentPart[];
+
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
-  content: string;
+  content: ChatContent;
 }
 
 export interface ChatCompletionRequest {

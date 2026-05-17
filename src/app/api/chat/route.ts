@@ -7,6 +7,8 @@ import {
 } from "@/lib/llm/rag/context";
 import { getCurrentTenant } from "@/lib/tenants/server";
 import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { auditLog } from "@/lib/db/schema";
 import {
   resolveStudentId,
   resolveStudentClassId,
@@ -17,6 +19,11 @@ import {
   touchConversation,
   getConversationOwner,
 } from "@/lib/chat/persistence";
+import type { MediaMessageAttachment } from "@/lib/chat/persistence";
+import {
+  normalizeIncomingMessages,
+  prepareChatPayload,
+} from "@/lib/chat/multimodal";
 import { createBufferedSseResponse } from "@/lib/http/sse";
 
 /**
@@ -36,6 +43,7 @@ import { createBufferedSseResponse } from "@/lib/http/sse";
  */
 
 export const runtime = "nodejs";
+export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -48,11 +56,12 @@ export async function POST(request: NextRequest) {
 
   const tenant = await getCurrentTenant();
   const body = (await request.json()) as {
-    messages: { role: "user" | "assistant" | "system"; content: string }[];
+    messages?: unknown;
     conversationId?: string;
   };
+  const incomingMessages = normalizeIncomingMessages(body.messages);
 
-  if (!Array.isArray(body.messages) || body.messages.length === 0) {
+  if (incomingMessages.length === 0) {
     return NextResponse.json({ error: "messages required" }, { status: 400 });
   }
 
@@ -72,13 +81,16 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const lastUserMessage = [...body.messages].reverse().find((m) => m.role === "user");
+  const lastUserMessage = [...incomingMessages]
+    .reverse()
+    .find((m) => m.role === "user");
+  const prepared = await prepareChatPayload(incomingMessages);
 
   if (!conversationId && studentId && lastUserMessage) {
     conversationId = await createConversation({
       tenantId: tenant.id,
       studentId,
-      title: lastUserMessage.content,
+      title: conversationTitle(lastUserMessage),
     });
   }
 
@@ -87,7 +99,18 @@ export async function POST(request: NextRequest) {
       tenantId: tenant.id,
       conversationId,
       role: "user",
-      content: lastUserMessage.content,
+      content: lastUserMessage.content || conversationTitle(lastUserMessage),
+      attachments:
+        prepared.lastUserAttachments.length > 0
+          ? prepared.lastUserAttachments
+          : undefined,
+    });
+    await writeChatAttachmentAudit({
+      tenantId: tenant.id,
+      actorUserId: session.user.id,
+      studentId,
+      conversationId,
+      attachments: prepared.lastUserAttachments,
     });
   }
 
@@ -105,7 +128,7 @@ export async function POST(request: NextRequest) {
       ? await resolveStudentClassId({ studentId })
       : null;
 
-    const lastUserText = lastUserMessage?.content ?? "";
+    const lastUserText = prepared.ragQuery || lastUserMessage?.content || "";
     let focoBlock = "(Nenhuma habilidade marcada como foco no momento.)";
     let materialContext: MaterialContext = {
       block:
@@ -126,7 +149,7 @@ export async function POST(request: NextRequest) {
 
     const result = await complete({
       capability: "chat_student",
-      messages: body.messages,
+      messages: prepared.messages,
       tenantId: tenant.id,
       systemContext: {
         tutor_name: tenant.tutorName,
@@ -163,6 +186,7 @@ export async function POST(request: NextRequest) {
         content: result.text,
         attachments: sourceAttachments.length > 0 ? sourceAttachments : undefined,
         model: result.model,
+        promptVersion: result.promptVersion,
         inputTokens: result.inputTokens,
         outputTokens: result.outputTokens,
         latencyMs: result.latencyMs,
@@ -180,4 +204,52 @@ export async function POST(request: NextRequest) {
   }
 
   return createBufferedSseResponse(events);
+}
+
+function conversationTitle(message: {
+  content: string;
+  attachments?: Array<{ kind: string; name?: string }>;
+}): string {
+  const text = message.content.trim();
+  if (text) return text;
+  const first = message.attachments?.[0];
+  if (!first) return "Conversa com a tutora";
+  if (first.kind === "image") return `Imagem para estudar: ${first.name ?? "foto"}`;
+  if (first.kind === "audio") return `Audio para estudar: ${first.name ?? "audio"}`;
+  return `Documento para estudar: ${first.name ?? "arquivo"}`;
+}
+
+async function writeChatAttachmentAudit(input: {
+  tenantId: string;
+  actorUserId: string;
+  studentId: string | null;
+  conversationId: string | null;
+  attachments: MediaMessageAttachment[];
+}) {
+  if (!process.env.DATABASE_URL || input.attachments.length === 0) return;
+  try {
+    await db().insert(auditLog).values({
+      tenantId: input.tenantId,
+      actorUserId: null,
+      action: "student.chat.attachment_analyze",
+      targetType: "conversation",
+      targetId: input.conversationId ?? input.studentId ?? null,
+      metadata: {
+        actorUserId: input.actorUserId,
+        studentId: input.studentId,
+        conversationId: input.conversationId,
+        attachments: input.attachments.map((attachment) => ({
+          kind: attachment.kind,
+          mime: attachment.mime,
+          name: attachment.name,
+          size: attachment.size,
+          hasTranscript: !!attachment.transcript,
+          hasExtractedText: !!attachment.extractedText,
+          analysisError: attachment.analysisError,
+        })),
+      },
+    });
+  } catch (err) {
+    console.warn("[chat] attachment audit failed:", err);
+  }
 }

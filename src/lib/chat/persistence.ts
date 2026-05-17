@@ -14,9 +14,14 @@ import { conversations, messages } from "@/lib/db/schema";
 export type DbMessageRole = "user" | "assistant" | "system";
 
 export type MediaMessageAttachment = {
-  kind: "image" | "audio";
+  kind: "image" | "audio" | "document";
   url: string;
   mime: string;
+  name?: string;
+  size?: number;
+  transcript?: string;
+  extractedText?: string;
+  analysisError?: string;
 };
 
 export type MessageSourceAttachment = {

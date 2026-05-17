@@ -39,6 +39,9 @@ const DEFAULTS_BY_CAPABILITY: Record<string, Record<string, string>> = {
     contexto_material:
       "(Sem material relevante encontrado para essa pergunta. Responda com seu conhecimento amplo.)",
   },
+  student_artifact_generation: {
+    prefeitura: "Alfenas",
+  },
   plan_generation: {
     prefeitura: "Alfenas",
     tenant_uf: "MG",
