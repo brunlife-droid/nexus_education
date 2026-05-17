@@ -26,7 +26,7 @@
   - `railway.json` define build, pre-deploy migrations e start command para Railway.
   - Cliente Drizzle migrou para `pg`/Node Postgres, compatível com Railway Postgres e ainda compatível com Neon via `sslmode=require`/`DATABASE_SSL=true`.
   - Script `npm run db:deploy` roda `0000_prepare_pgvector_and_rls.sql`, `drizzle-kit push --force` e depois aplica SQL pós-schema (`0001`, `0002`, `0003`, `9999`) de forma idempotente.
-  - Railway já tem PostgreSQL, `DATABASE_URL`, `DATABASE_SSL=false`, chaves de IA/Auth, domínio público e bucket S3 ligados ao serviço `nexus_education`. Falta validar o deploy Railway completo depois do push.
+  - Railway já tem PostgreSQL, `DATABASE_URL`, `DATABASE_SSL=false`, chaves de IA/Auth, domínio público e bucket S3 ligados ao serviço `nexus_education`. Deploy `7b05b70` ficou ativo; smoke test validou home, login professor, `/api/llm-health`, upload/processamento de material e análise de documento no chat do aluno.
 - **Teste de produção em 2026-05-16**:
   - Home e `/entrar` responderam `200 OK`.
   - Login demo professor/aluno funcionou; `/professor`, `/aluno/chat` e `/aluno/historico` abriram autenticadas.

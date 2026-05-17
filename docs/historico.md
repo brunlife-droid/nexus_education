@@ -12,8 +12,9 @@
 - O provider de storage deixou de depender de Vercel Blob e passou a usar `@aws-sdk/client-s3`, retornando URLs internas `/api/storage/...` servidas por rota autenticada e validada por tenant.
 - Uploads do chat multimodal continuam passando por `/api/upload`; materiais da turma agora usam multipart em `/api/material/upload`, gravam no bucket privado, criam `documents` e disparam o processamento RAG pelo mesmo arquivo S3.
 - O processamento multimodal e o RAG passaram a baixar arquivos pelo provider privado, sem aceitar URLs externas arbitrárias.
+- Deploy Railway `7b05b70` ficou ativo e `Deployment successful`; smoke test em `nexuseducation-production.up.railway.app` validou home, login professor, `/api/llm-health`, upload/processamento de material TXT e upload/análise de documento no chat do aluno.
 
-Consequência: a operação de arquivos fica pronta para centralização na Railway, junto do app e do Postgres; falta validar o deploy Railway completo depois do push.
+Consequência: a operação de arquivos está centralizada na Railway junto do app e do Postgres, com validação real de S3 privado, RAG e chat multimodal.
 
 ---
 
