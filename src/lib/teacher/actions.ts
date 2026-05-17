@@ -17,6 +17,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { chunks, classes, documents } from "@/lib/db/schema";
 import { auth } from "@/lib/auth";
+import { deleteFile, pathnameFromStorageUrl } from "@/lib/storage";
 import { getCurrentTenant } from "@/lib/tenants/server";
 import { ensureDemoClassScope, ensureSessionUserId } from "./demo-db";
 import { saveClassFocus } from "./focus-service";
@@ -95,8 +96,8 @@ export async function deleteClassMaterial(input: { documentId: string }) {
   // Best-effort: apaga blob físico (não bloqueia se falhar).
   if (doc.sourceUrl) {
     try {
-      const { del } = await import("@vercel/blob");
-      await del(doc.sourceUrl);
+      const pathname = pathnameFromStorageUrl(doc.sourceUrl);
+      if (pathname) await deleteFile(pathname);
     } catch (err) {
       console.warn("[actions] blob delete failed:", err);
     }

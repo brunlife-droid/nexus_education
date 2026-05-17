@@ -5,7 +5,7 @@
  *
  * Foco: multi-select de habilidades BNCC (toggles). Salva por Server Action.
  *
- * Material: upload direto pro Vercel Blob via @vercel/blob/client (bypassa
+ * Material: upload para storage S3 privado via API do app (Railway Bucket).
  * o limite de 4.5MB de body de função). Após upload, dispara processamento
  * (extração + embeddings) e refresca a página pra mostrar progresso.
  *
@@ -15,7 +15,6 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { upload } from "@vercel/blob/client";
 import {
   CheckCircle2,
   AlertCircle,
@@ -26,10 +25,7 @@ import {
   FileText,
 } from "lucide-react";
 import { Badge, Button, Card } from "@/components/ui";
-import {
-  deleteClassMaterial,
-  ensureMaterialProcessing,
-} from "@/lib/teacher/actions";
+import { deleteClassMaterial } from "@/lib/teacher/actions";
 
 const MAX_BYTES = 50 * 1024 * 1024;
 const ALLOWED_TYPES = [
@@ -126,24 +122,20 @@ export function MaterialPanel({
 
     setUploading(true);
     try {
-      const blob = await upload(`materials/${classId}/${file.name}`, file, {
-        access: "private",
-        handleUploadUrl: "/api/material/upload",
-        clientPayload: JSON.stringify({
-          classId,
-        }),
+      const form = new FormData();
+      form.append("file", file);
+      form.append("classId", classId);
+      const response = await fetch("/api/material/upload", {
+        method: "POST",
+        body: form,
       });
+      const result = (await response.json().catch(() => ({}))) as {
+        documentId?: string | null;
+        error?: string;
+      };
+      if (!response.ok) throw new Error(result.error ?? "Falha no upload.");
 
-      // Garante a row e dispara processamento (cobre dev sem webhook).
-      const result = await ensureMaterialProcessing({
-        classId,
-        blobUrl: blob.url,
-        filename: file.name,
-        contentType: file.type || "application/octet-stream",
-        sizeBytes: file.size,
-      });
-
-      if ("documentId" in result && result.documentId) {
+      if (result.documentId) {
         fetch("/api/material/process", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

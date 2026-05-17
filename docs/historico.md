@@ -6,6 +6,29 @@
 
 ---
 
+## 2026-05-17 — Migração do storage para Railway Bucket/S3
+
+- Criado e aplicado um Railway Bucket S3-compatível no projeto `dynamic-essence`, ligado ao serviço `nexus_education` com variáveis AWS (`AWS_ENDPOINT_URL`, `AWS_S3_BUCKET_NAME`, `AWS_DEFAULT_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`).
+- O provider de storage deixou de depender de Vercel Blob e passou a usar `@aws-sdk/client-s3`, retornando URLs internas `/api/storage/...` servidas por rota autenticada e validada por tenant.
+- Uploads do chat multimodal continuam passando por `/api/upload`; materiais da turma agora usam multipart em `/api/material/upload`, gravam no bucket privado, criam `documents` e disparam o processamento RAG pelo mesmo arquivo S3.
+- O processamento multimodal e o RAG passaram a baixar arquivos pelo provider privado, sem aceitar URLs externas arbitrárias.
+
+Consequência: a operação de arquivos fica pronta para centralização na Railway, junto do app e do Postgres; falta validar o deploy Railway completo depois do push.
+
+---
+
+## 2026-05-17 — Preparo para deploy no Railway
+
+- Adicionado `railway.json` com build, start command, healthcheck e pre-deploy command para rodar migrations antes de subir o container.
+- O cliente Drizzle deixou de depender do driver específico do Neon e passou a usar `pg`/Node Postgres, permitindo conectar tanto no Railway Postgres quanto no Neon durante a transição.
+- Criado `scripts/apply-sql-migrations.mjs` para aplicar os SQLs manuais em fases (`prepush` antes do `drizzle-kit push` e `postpush` depois), cobrindo extensão `vector`, pgcrypto, RLS e tabelas adicionadas manualmente.
+- `9999_rls_policies.sql` ficou idempotente para poder ser reexecutado em deploy sem falhar por política já existente.
+- `package.json` ganhou scripts `start:railway`, `db:push:force`, `db:prepare`, `db:postdeploy` e `db:deploy`.
+
+Consequência: o app está pronto para um deploy paralelo no Railway; falta apenas criar/ligar um serviço PostgreSQL com pgvector e preencher as variáveis de ambiente no painel antes de promover Railway como produção principal.
+
+---
+
 ## 2026-05-17 — Base Neon para artefatos e diário
 
 - Criada a migration `0003_artifacts_diary_and_rls.sql` com tabelas dedicadas para `student_artifacts`, `teacher_artifacts` e `pedagogical_diary_entries`, além de reforço de RLS para tabelas adicionadas depois da política inicial.

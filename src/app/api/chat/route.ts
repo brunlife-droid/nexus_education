@@ -84,7 +84,9 @@ export async function POST(request: NextRequest) {
   const lastUserMessage = [...incomingMessages]
     .reverse()
     .find((m) => m.role === "user");
-  const prepared = await prepareChatPayload(incomingMessages);
+  const prepared = await prepareChatPayload(incomingMessages, {
+    tenantId: tenant.id,
+  });
 
   if (!conversationId && studentId && lastUserMessage) {
     conversationId = await createConversation({

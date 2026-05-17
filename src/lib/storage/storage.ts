@@ -1,18 +1,10 @@
 import type { StorageProvider, UploadOptions } from "./types";
-import { vercelBlobProvider } from "./providers/vercel-blob";
 import { mockStorageProvider } from "./providers/mock";
-
-/**
- * Escolhe o provider em runtime baseado em variáveis de ambiente.
- *
- * - BLOB_READ_WRITE_TOKEN presente → Vercel Blob
- * - caso contrário → mock (placeholder URLs / data URLs)
- *
- * Trocar para R2/S3 no futuro = adicionar novo provider e mudar essa função.
- */
+import { hasS3Config, s3StorageProvider } from "./providers/s3";
+import { isTenantStoragePath, pathnameFromStorageUrl } from "./url";
 
 function pickProvider(): StorageProvider {
-  if (process.env.BLOB_READ_WRITE_TOKEN) return vercelBlobProvider;
+  if (hasS3Config()) return s3StorageProvider;
   return mockStorageProvider;
 }
 
@@ -25,6 +17,24 @@ export function storage(): StorageProvider {
 
 export async function uploadFile(file: File | Blob, options: UploadOptions) {
   return storage().upload(file, options);
+}
+
+export async function downloadFile(pathname: string) {
+  return storage().download(pathname);
+}
+
+export async function downloadFileByUrl(
+  url: string,
+  options?: { tenantId?: string },
+) {
+  const pathname = pathnameFromStorageUrl(url);
+  if (!pathname) {
+    throw new Error("URL fora do storage autorizado");
+  }
+  if (options?.tenantId && !isTenantStoragePath(pathname, options.tenantId)) {
+    throw new Error("Arquivo fora do tenant atual");
+  }
+  return downloadFile(pathname);
 }
 
 export async function deleteFile(pathname: string) {

@@ -27,19 +27,22 @@ NEXTAUTH_SECRET="gere com: openssl rand -base64 32"
 NEXTAUTH_URL="http://localhost:3000"  # produção: https://seu-dominio
 
 # ─── Storage (Bloco J) ─────────────────────────────────────────
-# Habilite Vercel Blob em Project Settings → Storage → Create Blob Store
-# (em produção, Vercel injeta a variável automaticamente)
-BLOB_READ_WRITE_TOKEN="vercel_blob_rw_..."
+# Railway Bucket / S3 compativel
+AWS_ENDPOINT_URL="https://t3.storageapi.dev"
+AWS_S3_BUCKET_NAME="functional-holder"
+AWS_DEFAULT_REGION="auto"
+AWS_ACCESS_KEY_ID="..."
+AWS_SECRET_ACCESS_KEY="..."
 ```
 
-## Habilitando Vercel Blob
+## Habilitando Railway Bucket/S3
 
-1. Vercel Dashboard → seu projeto → **Storage** → **Create Database**
-2. Escolha **Blob** → confirme o nome
-3. Vercel conecta o store automaticamente em todos os ambientes (production, preview, development) e injeta `BLOB_READ_WRITE_TOKEN`
-4. Para dev local, baixe as envs com `vercel env pull .env.local`
+1. Railway → projeto → **Add** → **Bucket**
+2. Deploy do bucket no ambiente desejado
+3. Abra **Credentials** → **Add to Service**
+4. Escolha o servico do app e o preset **AWS SDK (Generic)**
 
-Sem `BLOB_READ_WRITE_TOKEN`, uploads viram data URLs inline (imagens) ou placeholders — útil para desenvolvimento sem custo.
+Sem variaveis S3, uploads caem no provider mock local (data URL para imagem pequena ou placeholder).
 
 Na Vercel, configure essas mesmas variáveis em **Project Settings → Environment Variables**.
 
@@ -67,6 +70,6 @@ A partir daí, mudanças em `src/lib/db/schema.ts` são aplicadas com `npm run d
 | `DATABASE_URL` | A partir do Bloco G — quando começamos a salvar conversas, alunos, etc. de verdade |
 | `OPENROUTER_API_KEY` | A partir do Bloco H — sem isso, o chat usa um mock provider que devolve respostas plausíveis. Obtenha em https://openrouter.ai/keys |
 | `NEXTAUTH_SECRET` | A partir do Bloco I — sem isso, auth está em "modo dev" e qualquer usuário entra como demo |
-| `BLOB_READ_WRITE_TOKEN` | A partir do Bloco J — sem isso, uploads de foto viram data URLs inline (funciona, mas não persiste entre sessões) |
+| `AWS_ENDPOINT_URL`, `AWS_S3_BUCKET_NAME`, `AWS_DEFAULT_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | Storage S3 privado no Railway para chat multimodal e materiais da turma |
 
 Todos os clientes (db, llm, auth) têm fallback: se a variável não existir, lançam erro descritivo somente quando alguém tenta usar. **Build, lint e renderização de páginas funcionam sem nenhuma credencial.**

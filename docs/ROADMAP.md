@@ -38,7 +38,7 @@
 | Auth | NextAuth v5 | Email/password + Google + (futuro) Gov.br |
 | LLM gateway | Vercel AI SDK | Streaming nativo, multi-provider abstrato |
 | RAG | pgvector + embeddings (Voyage AI ou text-embedding-3) | Único DB, sem mais infra |
-| Storage | Vercel Blob | Fotos de exercício, áudios, PDFs gerados |
+| Storage | Railway Bucket/S3 | Fotos de exercício, áudios, PDFs gerados |
 | PDF | `@react-pdf/renderer` | Componentiza PDF como React — mantém design |
 | Mensageria | Inngest ou QStash | Jobs assíncronos (geração de PDF, indexação RAG) |
 | Observability | Sentry + Vercel Analytics + custom (tokens/cost) | Erros + UX + custo LLM |
@@ -290,7 +290,7 @@ Para **10.000 alunos ativos** em 2-3 prefeituras:
 | --- | --- |
 | Vercel Pro | ~R$ 100 |
 | Neon Postgres Pro | ~R$ 150 |
-| Vercel Blob (uploads) | ~R$ 50 |
+| Railway Bucket/S3 (uploads) | custo variável conforme uso |
 | Sentry Team | ~R$ 130 |
 | LLM tokens (Claude Haiku, mix) | ~R$ 1.500 |
 | Embeddings (Voyage) | ~R$ 100 |

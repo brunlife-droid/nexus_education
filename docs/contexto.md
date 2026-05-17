@@ -2,7 +2,7 @@
 
 > **Atualizar este arquivo sempre que o estado do projeto mudar.** Foto rápida do que está pronto, o que está em andamento e o que ainda não foi tocado.
 >
-> Última atualização: 2026-05-17 (base Neon de artefatos e diário)
+> Última atualização: 2026-05-17 (Railway preparado em paralelo)
 
 ---
 
@@ -18,15 +18,21 @@
   - `NEXTAUTH_URL` ✅
   - `NEXTAUTH_SECRET` ✅
 - **Pendente pra fechar produção**:
-  - `BLOB_READ_WRITE_TOKEN` ✅ (`nexus-materials`, Blob privado em GRU1)
+  - Railway Bucket/S3 ✅ (`functional-holder`, endpoint `https://t3.storageapi.dev`, ligado ao app com variáveis AWS)
   - Aplicar `drizzle/migrations/0003_artifacts_diary_and_rls.sql` no Neon para tirar artefatos do fallback em `audit_log`.
   - Validação end-to-end: subir material real, conversar com a tutora pra confirmar que ela usa o trecho RAG.
+- **Migração Railway em paralelo**:
+  - Repositório GitHub conectado no projeto Railway `dynamic-essence` / ambiente `production`.
+  - `railway.json` define build, pre-deploy migrations e start command para Railway.
+  - Cliente Drizzle migrou para `pg`/Node Postgres, compatível com Railway Postgres e ainda compatível com Neon via `sslmode=require`/`DATABASE_SSL=true`.
+  - Script `npm run db:deploy` roda `0000_prepare_pgvector_and_rls.sql`, `drizzle-kit push --force` e depois aplica SQL pós-schema (`0001`, `0002`, `0003`, `9999`) de forma idempotente.
+  - Railway já tem PostgreSQL, `DATABASE_URL`, `DATABASE_SSL=false`, chaves de IA/Auth, domínio público e bucket S3 ligados ao serviço `nexus_education`. Falta validar o deploy Railway completo depois do push.
 - **Teste de produção em 2026-05-16**:
   - Home e `/entrar` responderam `200 OK`.
   - Login demo professor/aluno funcionou; `/professor`, `/aluno/chat` e `/aluno/historico` abriram autenticadas.
   - `/api/llm-health` respondeu com OpenRouter real (`anthropic/claude-haiku-4-5`, `sample: "pong"`).
   - Rotas SSE (`/api/chat`, `/api/lesson-plan`, `/api/essay-correction`) foram corrigidas e validadas em produção com respostas `200 OK`. Elas agora usam `complete()` + `createBufferedSseResponse()` e mantêm o contrato de linhas `data: ...` consumido pelo frontend.
-  - Bruno já pode testar login, chat do aluno, copiloto do professor, correção de redação e gerador de prova em produção. Upload de material usa Vercel Blob privado (`nexus-materials`).
+  - Bruno já pode testar login, chat do aluno, copiloto do professor, correção de redação e gerador de prova em produção. Upload de material agora está preparado para Railway Bucket/S3 privado.
 - **Teste de produção em 2026-05-17**:
   - Deploy `8fefb7c` ficou verde na Vercel.
   - `/aluno/estudo` abriu autenticada com o menu "Estudo ativo" e recarregou artefatos persistidos.
@@ -41,7 +47,7 @@
 - Drizzle + Neon Postgres com pgvector + migrations aplicadas
 - LLM gateway via OpenRouter (Claude Haiku 4.5 primário) — `src/lib/llm/`
 - NextAuth v5 com credenciais demo + página de login
-- Storage abstrato + Vercel Blob (upload de foto no chat)
+- Storage abstrato + Railway Bucket/S3 privado (chat, áudio, documentos e materiais da turma)
 - Scaffolding de conteúdo ainda contém mocks em várias telas de Aluno, Professor, Secretaria e Admin
 - Multi-tenant foundation (middleware + tabela `tenants` + tokens CSS por tenant)
 - **Design system visual revitalizado**: tokens globais, shells, cards, botões, badges, chips e cabeçalhos agora usam superfícies mais luminosas, washes da marca do tenant e acentos de área para reduzir a sensação de app cinza sem perder tom institucional.
@@ -61,9 +67,9 @@
 - **P3 Correção de redação**: `/professor/correcao` analisa texto colado nas 5 competências ENEM (GPT-4o-mini via OpenRouter, fallback Haiku). Form com nome do aluno + tema + textarea + botão. Resultado grava artefato best-effort em `teacher_artifacts` quando a migration 0003 existir, com fallback em `audit_log`.
 - **P4 Gerador de prova real**: `/professor/provas` chama `/api/exam-generation` via capability `exam_generation`, gerando prova com matriz BNCC, versões e gabarito comentado. Permite copiar ou baixar `.md`; grava artefato best-effort em `teacher_artifacts` quando a migration 0003 existir, com fallback em `audit_log`.
 - **Tutora v4.3 socrática + RAG da turma**: prompt do `chat_student` reescrito com regras explícitas de não entregar resposta antes do aluno tentar. Slots `{{foco_pedagogico}}` (de `class_focus_skills`) e `{{contexto_material}}` (top-3 chunks via pgvector) injetados pelo `/api/chat`. Quando há material relevante, o chat do aluno mostra chips de fonte abaixo da resposta e persiste essa metadata na mensagem. Sem material relevante → tutora segue com base ampla.
-- **Chat multimodal do aluno**: `/api/chat` aceita anexos reais (`image`, `audio`, `document`) vindos do upload. Imagens são carregadas do Blob privado e enviadas ao gateway como parte multimodal; áudios são transcritos via OpenAI quando `OPENAI_API_KEY` está presente; PDFs/DOCX/TXT/MD têm texto extraído antes da chamada LLM. A mensagem do aluno persiste metadata do anexo em `messages.attachments`, e a ação é auditada em `audit_log` como `student.chat.attachment_analyze`.
+- **Chat multimodal do aluno**: `/api/chat` aceita anexos reais (`image`, `audio`, `document`) vindos do upload. Imagens são carregadas do storage S3 privado e enviadas ao gateway como parte multimodal; áudios são transcritos via OpenAI quando `OPENAI_API_KEY` está presente; PDFs/DOCX/TXT/MD têm texto extraído antes da chamada LLM. A mensagem do aluno persiste metadata do anexo em `messages.attachments`, e a ação é auditada em `audit_log` como `student.chat.attachment_analyze`.
 - **Artefatos de estudo do aluno**: `/aluno/estudo` gera cartões de estudo, quiz interativo e resumo guiado via capability `student_artifact_generation`. A rota `/api/student-artifacts` usa `complete()` pelo gateway, aceita tema ou conversa como fonte e salva o resultado best-effort em `student_artifacts` quando a migration 0003 existir, com fallback em `audit_log` (`student_artifact.create`).
-- **Material da turma no `/professor/turma`**: card com multi-select de habilidades BNCC pra foco + upload (PDF/DOCX/TXT/MD até 50MB) com status (pendente/processando/pronto/falhou), remoção e reprocessamento manual quando falha. Upload direto pro Vercel Blob via signed URL (`@vercel/blob/client`); `/api/material/process` extrai texto + chunks + embeddings (`text-embedding-3-small`).
+- **Material da turma no `/professor/turma`**: card com multi-select de habilidades BNCC pra foco + upload (PDF/DOCX/TXT/MD até 50MB) com status (pendente/processando/pronto/falhou), remoção e reprocessamento manual quando falha. Upload passa por `/api/material/upload`, grava no Railway Bucket/S3 privado e `/api/material/process` extrai texto + chunks + embeddings (`text-embedding-3-small`).
 - **Config macro LLM no admin**: `/admin/configuracoes/llm` (papel `admin_nexus`) edita provider/modelo/temperature/maxTokens/fallback por capability e prompts versionados. Mudanças aplicam imediatamente (gateway lê DB com cache por request). Cai no fallback hardcoded sem DB ou sem registro.
 
 ## O que está mockado / não funcional ainda

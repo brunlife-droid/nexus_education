@@ -12,12 +12,12 @@
 | --- | --- | --- |
 | Framework | Next.js 16 (App Router, Turbopack) | raiz |
 | UI | React 19 + Tailwind v4 + CSS vars semânticas + Markdown seguro | `src/app/`, `src/components/` |
-| DB | Postgres (Neon serverless) + pgvector | `drizzle/migrations/` |
+| DB | Postgres (Railway/Neon) + pgvector | `drizzle/migrations/` |
 | ORM | Drizzle | `src/lib/db/` |
 | Auth | NextAuth v5 (credenciais demo por enquanto) | `src/lib/auth/` |
 | LLM gateway | Vercel AI SDK + OpenRouter | `src/lib/llm/` |
-| Storage | Vercel Blob via abstração | `src/lib/storage/` |
-| Hosting | Vercel (região `gru1` — São Paulo) | `vercel.json` |
+| Storage | Railway Bucket/S3 via abstração | `src/lib/storage/` |
+| Hosting | Vercel atual + Railway preparado em paralelo | `vercel.json`, `railway.json` |
 
 ## Estrutura de pastas
 
@@ -37,7 +37,7 @@ src/
     student/          # queries/actions/artefatos do aluno
     llm/              # gateway + providers + capabilities + prompts
     auth/             # NextAuth config
-    storage/          # abstração Vercel Blob
+    storage/          # abstração Railway Bucket/S3
     tenants/          # middleware helpers + config
   middleware.ts       # ⚠️ em Next 16 será migrado para `proxy.ts`
 drizzle/migrations/   # SQL versionado
@@ -65,6 +65,13 @@ O `CLAUDE.md` continua sendo a documentação humana do workflow; os hooks são 
 - `getCurrentTenant()` (em `src/lib/tenants/server.ts`) carrega a row do Postgres via `loadTenantFromDb()` (cacheado por request com `cache()` do React). `ensureTenantsSeeded()` faz o INSERT idempotente das 3 prefeituras no primeiro hit por instância.
 - Sem `DATABASE_URL` ou row inexistente: cai pra `TENANTS` in-code (mesmo shape `Tenant`) — dev sem DB continua funcionando.
 - Campos derivados (`population`, `students`, `teachers`, `schools`) ainda vêm do overlay in-code até COUNT real existir.
+
+### Deploy Railway
+- `railway.json` configura build com Railpack, pre-deploy command `npm run db:deploy`, start command `npm run start:railway`, healthcheck em `/` e restart on failure.
+- `npm run start:railway` sobe Next em `0.0.0.0` usando `$PORT`, que é o contrato esperado em ambientes containerizados.
+- `src/lib/db/client.ts` usa `pg` + `drizzle-orm/node-postgres`, não mais o driver específico do Neon. SSL é ativado por `DATABASE_SSL=true`, `sslmode=require` ou host Neon; Railway Postgres privado pode rodar sem SSL quando `DATABASE_SSL=false`.
+- `scripts/apply-sql-migrations.mjs` aplica os SQLs manuais em duas fases: `prepush` cria extensões (`vector`, `pgcrypto`) antes do `drizzle-kit push`; `postpush` reaplica patches, RLS e índices extras de forma idempotente.
+- O storage de produção usa Railway Bucket S3-compatível. O app espera `AWS_ENDPOINT_URL`, `AWS_S3_BUCKET_NAME`, `AWS_DEFAULT_REGION`, `AWS_ACCESS_KEY_ID` e `AWS_SECRET_ACCESS_KEY`; URLs retornadas ao browser passam por `/api/storage/[...path]`, autenticada e validada por tenant.
 
 ### LLM gateway
 - Tudo passa por `src/lib/llm/gateway.ts`. Componentes nunca chamam OpenRouter direto.
@@ -142,20 +149,20 @@ Convenção pra nova capability: 1) adicionar rota em `routes.ts` (fallback hard
 
 ### RAG da turma (material do professor)
 - **Schema**: `documents` ganhou `class_id` + `kind` (`class_material` | `national_library`) + `status` (`pending`|`processing`|`ready`|`failed`); `chunks` tem `embedding vector(1536)` + índice HNSW (migration 0001).
-- **Upload**: client uploads do `@vercel/blob/client` com `access: "private"` — browser PUT direto na Blob privada (`nexus-materials`) com token assinado por `/api/material/upload`. Teto 50MB no token; arquivo grande nunca passa por função do servidor (bypassa limite de 4.5MB).
-- **Processamento**: `/api/material/process` baixa o blob, extrai texto (`pdf-parse`/`mammoth`/texto puro), chunka (1800c + 200c overlap), embedda em lotes de 32 via `text-embedding-3-small`, persiste em `chunks`. `maxDuration = 300`s. Idempotente por `documentId`; quando chamado pelo navegador, valida papel pedagógico e tenant do documento antes de processar. Materiais `failed` podem ser reprocessados pelo painel da turma.
+- **Upload**: `/api/material/upload` recebe multipart autenticado, valida papel pedagógico, tenant/turma, MIME e 50MB, grava no Railway Bucket/S3 privado e cria a row em `documents`.
+- **Processamento**: `/api/material/process` baixa o arquivo pelo provider S3, extrai texto (`pdf-parse`/`mammoth`/texto puro), chunka (1800c + 200c overlap), embedda em lotes de 32 via `text-embedding-3-small`, persiste em `chunks`. `maxDuration = 300`s. Idempotente por `documentId`; quando chamado pelo navegador, valida papel pedagógico e tenant do documento antes de processar. Materiais `failed` podem ser reprocessados pelo painel da turma.
 - **Retrieve em conversa**: `rag/retrieve.ts` embedda a última pergunta do aluno e busca top-3 chunks da turma do aluno por cosine distance (threshold 0.35). `rag/context.ts` formata os slots `{{foco_pedagogico}}` (de `class_focus_skills`) e `{{contexto_material}}` que o prompt v4.3 espera, além de devolver as fontes estruturadas usadas pela UI. `/api/chat` faz isso antes de chamar `complete()` e devolver linhas `data: ...` para o frontend.
 - **Foco pedagógico**: `class_focus_skills` é a lista de habilidades BNCC marcadas pela profe em `/professor/turma` (multi-select). O painel salva via `/api/class-focus`, rota JSON autenticada por papel pedagógico. Vão pro prompt como prioridade — a tutora ainda responde sobre outros temas, só dá preferência a esses.
-- Para demo resiliente, `setClassFocus()` garante tenant/escola/turma demo e as habilidades BNCC conhecidas no DB antes de inserir `class_focus_skills`; `/api/material/upload` também garante tenant/turma demo antes de emitir token. `setBy`/`uploadedBy` só são preenchidos quando o usuário da sessão existe no DB, evitando FK quebrada por conflito legado de seed.
+- Para demo resiliente, `setClassFocus()` garante tenant/escola/turma demo e as habilidades BNCC conhecidas no DB antes de inserir `class_focus_skills`; `/api/material/upload` também garante tenant/turma demo antes de gravar documento. `setBy`/`uploadedBy` só são preenchidos quando o usuário da sessão existe no DB, evitando FK quebrada por conflito legado de seed.
 
 ### Chat multimodal do aluno
 - O contrato client → `/api/chat` agora envia `messages[]` com `attachments[]` estruturados (`image`, `audio`, `document`). O componente `ChatClient` só faz upload para `/api/upload`; análise acontece no servidor.
 - `src/lib/chat/multimodal.ts` prepara a última mensagem do aluno antes do gateway:
-  - Imagem: baixa do Vercel Blob privado (ou data URL mock), converte para data URL até 7MB e envia ao AI SDK como parte `image`.
-  - Áudio: baixa do Blob e chama `POST /v1/audio/transcriptions` da OpenAI, com `OPENAI_TRANSCRIPTION_MODEL` opcional e fallback para `whisper-1`.
+  - Imagem: baixa do Railway Bucket/S3 privado (ou data URL mock), converte para data URL até 7MB e envia ao AI SDK como parte `image`.
+  - Áudio: baixa do storage privado e chama `POST /v1/audio/transcriptions` da OpenAI, com `OPENAI_TRANSCRIPTION_MODEL` opcional e fallback para `whisper-1`.
   - Documento: baixa e extrai texto via `extractText()` (`pdf-parse`, `mammoth` ou texto puro), limitando o contexto enviado à LLM.
 - `/api/chat` continua retornando resposta bufferizada no mesmo contrato SSE (`data: ...`), mas registra anexos analisados em `audit_log` com `action='student.chat.attachment_analyze'`.
-- URLs arbitrárias não são baixadas: o processamento só aceita data URL ou host `blob.vercel-storage.com`, evitando SSRF no backend.
+- URLs arbitrárias não são baixadas: o processamento só aceita data URL ou URL interna `/api/storage/...`, evitando SSRF no backend.
 
 ### Artefatos de estudo do aluno
 - `src/lib/student/artifacts.ts` centraliza leitura/gravação dos artefatos do aluno. A persistência primária é `student_artifacts` (migration 0003), com fallback em `audit_log` (`action='student_artifact.create'`) para ambientes onde o SQL ainda não foi aplicado.

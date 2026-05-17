@@ -1,5 +1,5 @@
-import { get } from "@vercel/blob";
 import { extractText } from "@/lib/llm/rag/extract";
+import { downloadFileByUrl, isStorageUrl } from "@/lib/storage";
 import type { ChatContentPart, ChatMessage } from "@/lib/llm/types";
 import type { MediaMessageAttachment } from "./persistence";
 
@@ -53,6 +53,7 @@ export function normalizeIncomingMessages(value: unknown): IncomingChatMessage[]
 
 export async function prepareChatPayload(
   messages: IncomingChatMessage[],
+  options?: { tenantId?: string },
 ): Promise<PreparedChatPayload> {
   const lastUserIndex = messages.map((m) => m.role).lastIndexOf("user");
   const lastUser = lastUserIndex >= 0 ? messages[lastUserIndex] : null;
@@ -69,7 +70,7 @@ export async function prepareChatPayload(
       continue;
     }
 
-    const prepared = await prepareUserAttachmentContent(message);
+    const prepared = await prepareUserAttachmentContent(message, options);
     lastUserAttachments.push(...prepared.attachments);
     llmMessages.push({ role: message.role, content: prepared.content });
   }
@@ -95,7 +96,10 @@ export async function prepareChatPayload(
   };
 }
 
-async function prepareUserAttachmentContent(message: IncomingChatMessage): Promise<{
+async function prepareUserAttachmentContent(
+  message: IncomingChatMessage,
+  options?: { tenantId?: string },
+): Promise<{
   content: string | ChatContentPart[];
   attachments: MediaMessageAttachment[];
 }> {
@@ -109,7 +113,7 @@ async function prepareUserAttachmentContent(message: IncomingChatMessage): Promi
   const imageParts: ChatContentPart[] = [];
 
   for (const attachment of attachments.slice(0, 4)) {
-    const result = await processAttachment(attachment);
+    const result = await processAttachment(attachment, options);
     processed.push(result.attachment);
     contextLines.push(result.promptLine);
     if (result.imagePart) imageParts.push(result.imagePart);
@@ -132,7 +136,10 @@ async function prepareUserAttachmentContent(message: IncomingChatMessage): Promi
   };
 }
 
-async function processAttachment(input: IncomingChatAttachment): Promise<{
+async function processAttachment(
+  input: IncomingChatAttachment,
+  options?: { tenantId?: string },
+): Promise<{
   attachment: MediaMessageAttachment;
   promptLine: string;
   imagePart?: ChatContentPart;
@@ -146,7 +153,7 @@ async function processAttachment(input: IncomingChatAttachment): Promise<{
   };
 
   if (input.kind === "image") {
-    const loaded = await loadAttachmentBuffer(input);
+    const loaded = await loadAttachmentBuffer(input, options);
     if (!loaded.ok) {
       return {
         attachment: { ...attachment, analysisError: loaded.error },
@@ -172,7 +179,7 @@ async function processAttachment(input: IncomingChatAttachment): Promise<{
   }
 
   if (input.kind === "audio") {
-    const loaded = await loadAttachmentBuffer(input);
+    const loaded = await loadAttachmentBuffer(input, options);
     if (!loaded.ok) {
       return {
         attachment: { ...attachment, analysisError: loaded.error },
@@ -199,7 +206,7 @@ async function processAttachment(input: IncomingChatAttachment): Promise<{
     };
   }
 
-  const loaded = await loadAttachmentBuffer(input);
+  const loaded = await loadAttachmentBuffer(input, options);
   if (!loaded.ok) {
     return {
       attachment: { ...attachment, analysisError: loaded.error },
@@ -272,39 +279,24 @@ function textWithAttachmentSummaries(
 
 async function loadAttachmentBuffer(
   attachment: IncomingChatAttachment,
+  options?: { tenantId?: string },
 ): Promise<{ ok: true; buffer: Buffer; mime?: string } | { ok: false; error: string }> {
   if (attachment.url.startsWith("data:")) {
     return parseDataUrl(attachment.url);
   }
 
-  if (!isTrustedBlobUrl(attachment.url)) {
+  if (!isStorageUrl(attachment.url)) {
     return { ok: false, error: "URL fora do storage autorizado" };
   }
 
-  if (process.env.BLOB_READ_WRITE_TOKEN) {
-    try {
-      const blob = await get(pathnameFromBlobUrl(attachment.url), {
-        access: "private",
-      });
-      if (blob && blob.statusCode === 200) {
-        return {
-          ok: true,
-          buffer: Buffer.from(await new Response(blob.stream).arrayBuffer()),
-          mime: blob.blob.contentType ?? undefined,
-        };
-      }
-    } catch {
-      // fallback para fetch abaixo
-    }
-  }
-
   try {
-    const response = await fetch(attachment.url);
-    if (!response.ok) return { ok: false, error: `HTTP ${response.status}` };
+    const file = await downloadFileByUrl(attachment.url, {
+      tenantId: options?.tenantId,
+    });
     return {
       ok: true,
-      buffer: Buffer.from(await response.arrayBuffer()),
-      mime: response.headers.get("content-type") ?? undefined,
+      buffer: file.buffer,
+      mime: file.contentType,
     };
   } catch (err) {
     return {
@@ -383,23 +375,6 @@ function parseDataUrl(
       ok: false,
       error: err instanceof Error ? err.message : String(err),
     };
-  }
-}
-
-function isTrustedBlobUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    return parsed.hostname.includes("blob.vercel-storage.com");
-  } catch {
-    return false;
-  }
-}
-
-function pathnameFromBlobUrl(url: string): string {
-  try {
-    return new URL(url).pathname.replace(/^\/+/, "");
-  } catch {
-    return url.replace(/^\/+/, "");
   }
 }
 

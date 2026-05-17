@@ -1,5 +1,5 @@
 /**
- * Processa um material da turma: baixa do Blob, extrai texto, chunka,
+ * Processa um material da turma: baixa do storage privado, extrai texto, chunka,
  * gera embeddings e salva em `chunks`.
  *
  * Pode ser disparado:
@@ -15,10 +15,10 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
-import { get } from "@vercel/blob";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { chunks, documents } from "@/lib/db/schema";
+import { downloadFileByUrl } from "@/lib/storage";
 import { extractText } from "@/lib/llm/rag/extract";
 import { chunkText } from "@/lib/llm/rag/chunk";
 import { embedBatch } from "@/lib/llm/providers/openai-embeddings";
@@ -85,6 +85,11 @@ export async function POST(request: NextRequest) {
   if (!doc.sourceUrl) {
     return NextResponse.json({ error: "sourceUrl missing" }, { status: 400 });
   }
+  const sourceUrl = doc.sourceUrl;
+  if (!doc.tenantId) {
+    return NextResponse.json({ error: "tenantId missing" }, { status: 400 });
+  }
+  const docTenantId = doc.tenantId;
 
   await db()
     .update(documents)
@@ -92,14 +97,11 @@ export async function POST(request: NextRequest) {
     .where(eq(documents.id, documentId));
 
   try {
-    const blob = await get(pathnameFromBlobUrl(doc.sourceUrl), {
-      access: "private",
+    const stored = await downloadFileByUrl(sourceUrl, {
+      tenantId: docTenantId,
     });
-    if (!blob || blob.statusCode !== 200) {
-      throw new Error(`download falhou: HTTP ${blob?.statusCode ?? 404}`);
-    }
-    const buffer = Buffer.from(await new Response(blob.stream).arrayBuffer());
-    const mime = blob.blob.contentType ?? "";
+    const buffer = stored.buffer;
+    const mime = stored.contentType;
 
     const text = await extractText(buffer, mime, doc.name);
     const parts = chunkText(text);
@@ -178,12 +180,4 @@ export async function GET(request: NextRequest) {
     .limit(1);
   if (!rows[0]) return NextResponse.json({ error: "not found" }, { status: 404 });
   return NextResponse.json(rows[0]);
-}
-
-function pathnameFromBlobUrl(url: string): string {
-  try {
-    return new URL(url).pathname.replace(/^\/+/, "");
-  } catch {
-    return url.replace(/^\/+/, "");
-  }
 }

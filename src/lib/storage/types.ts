@@ -1,10 +1,3 @@
-/**
- * Tipos abstratos do storage.
- *
- * A abstração existe para permitir trocar Vercel Blob → R2 → S3 mudando
- * apenas o provider, sem mexer em componentes/server actions.
- */
-
 export type StorageKind = "image" | "audio" | "document" | "logo";
 
 export interface StoredFile {
@@ -15,18 +8,25 @@ export interface StoredFile {
   uploadedAt: Date;
 }
 
+export interface DownloadedFile {
+  buffer: Buffer;
+  contentType: string;
+  size?: number;
+}
+
 export interface UploadOptions {
   tenantId: string;
   kind: StorageKind;
-  /** Identificador do dono lógico (ex: studentId, conversationId) */
+  /** Identificador do dono logico, como studentId, conversationId ou classId. */
   ownerId?: string;
-  /** Sobrescrever nome do arquivo (caso queira nome determinístico) */
+  /** Sobrescrever nome do arquivo quando for preciso nome deterministico. */
   filename?: string;
-  /** Tornar a URL não pública (signed URL com expiração) */
+  /** Mantido no contrato para providers que tenham URLs assinadas. */
   privateAccess?: boolean;
 }
 
 export interface StorageProvider {
   upload(file: File | Blob, options: UploadOptions): Promise<StoredFile>;
+  download(pathname: string): Promise<DownloadedFile>;
   delete(pathname: string): Promise<void>;
 }
