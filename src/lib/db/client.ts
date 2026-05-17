@@ -114,6 +114,11 @@ function buildPoolConfig(connectionString: string): PoolConfig {
   return {
     connectionString,
     max: Number(process.env.DATABASE_POOL_MAX ?? 10),
+    connectionTimeoutMillis: Number(
+      process.env.DATABASE_CONNECTION_TIMEOUT_MS ?? 8000,
+    ),
+    query_timeout: Number(process.env.DATABASE_QUERY_TIMEOUT_MS ?? 12000),
+    statement_timeout: Number(process.env.DATABASE_STATEMENT_TIMEOUT_MS ?? 12000),
     ssl: shouldUseSsl ? { rejectUnauthorized: false } : undefined,
   };
 }

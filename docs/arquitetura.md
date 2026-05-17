@@ -11,6 +11,7 @@
 - Migration `0004_production_foundation.sql` entra no fluxo `scripts/apply-sql-migrations.mjs` antes das politicas RLS para criar `users.password_hash` e indices auxiliares.
 - Next 16 agora usa `src/proxy.ts` com export `proxy`; o antigo `src/middleware.ts` foi removido.
 - `src/lib/db/rls-context.ts` guarda o tenant resolvido por request e `src/lib/db/client.ts` aplica `app.tenant_id` no mesmo client do pool antes das queries, resetando em seguida.
+- A tabela global `tenants` e lida fora do contexto RLS; o pool Postgres usa timeouts curtos de conexao/query para evitar render pendurado em producao.
 - `9999_rls_policies.sql` aplica `FORCE ROW LEVEL SECURITY` nas tabelas tenant-scoped, incluindo anuncios, artefatos, diario e foco de turma.
 - Seeds/fallbacks demo de aluno/professor sao bloqueados em producao salvo `NEXUS_DEMO_MODE=true` ou `NEXUS_ALLOW_MOCKS=true`.
 - Railway usa `/api/health` como healthcheck tecnico leve, sem dependencia de DB/render da home.

@@ -6,6 +6,7 @@
 - Runtime agora separa dev/demo/producao. Em `NODE_ENV=production`, LLM, embeddings e storage nao podem cair em mock silencioso sem `NEXUS_ALLOW_MOCKS=true` ou `NEXUS_DEMO_MODE=true`.
 - `src/proxy.ts` substitui `src/middleware.ts` no Next 16 e continua injetando `x-tenant-id` e `x-pathname`.
 - RLS agora recebe `app.tenant_id` a partir do tenant resolvido na request e a migration `9999_rls_policies.sql` aplica `FORCE ROW LEVEL SECURITY` nas tabelas tenant-scoped recentes.
+- A tabela global `tenants` e consultada fora do contexto RLS e o pool Postgres tem timeout para evitar request preso.
 - Railway agora usa `/api/health` como healthcheck tecnico, sem depender da renderizacao da home.
 - Seeds/fallbacks demo de aluno/professor nao rodam mais em producao, salvo demo explicita por env.
 - Auth tenta usuario real do banco primeiro (`users.password_hash` com hash `scrypt`) e so mostra/usa contas demo em dev/demo. A migration `0004_production_foundation.sql` adiciona a coluna e indices auxiliares.

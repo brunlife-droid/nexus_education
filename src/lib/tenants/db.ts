@@ -16,6 +16,7 @@ import { eq } from "drizzle-orm";
 import { cache } from "react";
 import { db } from "@/lib/db";
 import { tenants as tenantsTable } from "@/lib/db/schema";
+import { withRlsTenant } from "@/lib/db/rls-context";
 import { ALL_TENANTS, TENANTS, type Tenant, type TenantId } from "./config";
 
 function dbAvailable(): boolean {
@@ -63,12 +64,14 @@ export const loadTenantFromDb = cache(
     if (!dbAvailable()) return inCode;
 
     try {
-      await ensureTenantsSeeded();
-      const rows = await db()
-        .select()
-        .from(tenantsTable)
-        .where(eq(tenantsTable.id, id))
-        .limit(1);
+      const rows = await withRlsTenant(null, async () => {
+        await ensureTenantsSeeded();
+        return db()
+          .select()
+          .from(tenantsTable)
+          .where(eq(tenantsTable.id, id))
+          .limit(1);
+      });
       const row = rows[0];
       if (!row) return inCode;
 
