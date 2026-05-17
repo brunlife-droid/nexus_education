@@ -2,7 +2,6 @@
 
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -13,9 +12,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   ArrowUp,
   BookOpenCheck,
-  Brain,
   Camera,
-  CheckCircle2,
   ClipboardList,
   FileAudio,
   FileText,
@@ -26,7 +23,6 @@ import {
   Mic,
   Paperclip,
   Sparkles,
-  Tag,
   Volume2,
 } from "lucide-react";
 import { LlmMarkdown } from "@/components/llm";
@@ -172,14 +168,6 @@ function formatBytes(size?: number): string | null {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function latestSourcesCount(messages: ChatClientMessage[]): number {
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const sources = messages[index]?.sources;
-    if (sources && sources.length > 0) return sources.length;
-  }
-  return 0;
-}
-
 export function ChatClient({
   tenant,
   initialMessages,
@@ -200,34 +188,16 @@ export function ChatClient({
   const studyHref = conversationId
     ? `/aluno/estudo?conversationId=${conversationId}`
     : "/aluno/estudo";
-  const sourceCount = useMemo(() => latestSourcesCount(messages), [messages]);
-  const attachmentCount = useMemo(
-    () =>
-      messages.reduce(
-        (sum, message) => sum + (message.attachments?.length ?? 0),
-        0,
-      ),
-    [messages],
-  );
   const activity = uploading
     ? {
         label: "Recebendo arquivo",
-        detail: "Assim que terminar, a tutora analisa o material.",
-        icon: Loader2,
-        live: true,
       }
     : sending
       ? {
           label: "Montando próximo passo",
-          detail: "A resposta vem como orientação, exemplo ou pergunta.",
-          icon: Brain,
-          live: true,
         }
       : {
           label: conversationId ? "Conversa salva" : "Pronta para estudar",
-          detail: "Texto, foto, áudio e documento entram no mesmo fluxo.",
-          icon: CheckCircle2,
-          live: false,
         };
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -445,9 +415,7 @@ export function ChatClient({
       <ChatHeader
         tenant={tenant}
         tutorInitial={tutorInitial}
-        activity={activity}
-        sourceCount={sourceCount}
-        attachmentCount={attachmentCount}
+        busy={sending || uploading}
       />
 
       <div ref={scrollRef} className="scroll-thin flex-1 overflow-y-auto">
@@ -568,28 +536,18 @@ export function ChatClient({
 function ChatHeader({
   tenant,
   tutorInitial,
-  activity,
-  sourceCount,
-  attachmentCount,
+  busy,
 }: {
   tenant: ChatClientProps["tenant"];
   tutorInitial: string;
-  activity: {
-    label: string;
-    detail: string;
-    icon: LucideIcon;
-    live: boolean;
-  };
-  sourceCount: number;
-  attachmentCount: number;
+  busy: boolean;
 }) {
-  const ActivityIcon = activity.icon;
   return (
     <header className="border-border/80 bg-surface-raised/95 shrink-0 border-b px-4 py-3 shadow-[var(--shadow-xs)] sm:px-6">
-      <div className="mx-auto flex max-w-[980px] flex-col gap-3 lg:flex-row lg:items-center">
+      <div className="mx-auto flex max-w-[980px] items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <div
-            className="relative grid size-11 shrink-0 place-items-center rounded-lg text-base font-semibold shadow-[var(--shadow-sm)]"
+            className="relative grid size-10 shrink-0 place-items-center rounded-lg text-base font-semibold shadow-[var(--shadow-sm)]"
             style={{
               background: tenant.primarySoft,
               color: tenant.primary,
@@ -611,74 +569,19 @@ function ChatHeader({
             <div className="text-text-muted mt-1 flex flex-wrap items-center gap-2 text-[12px]">
               <span>{tenant.short}</span>
               <span className="text-text-faint">•</span>
-              <span>tutoria socrática</span>
+              <span>{busy ? "respondendo agora" : "tutoria socrática"}</span>
             </div>
           </div>
         </div>
-
-        <div className="grid flex-1 gap-2 sm:grid-cols-3">
-          <StatusPill
-            icon={ActivityIcon}
-            label={activity.label}
-            detail={activity.detail}
-            color={tenant.primary}
-            live={activity.live}
-          />
-          <StatusPill
-            icon={Tag}
-            label="Foco atual"
-            detail="EF07MA04 · Frações"
-            color="var(--accent-violet)"
-          />
-          <StatusPill
-            icon={BookOpenCheck}
-            label="Material usado"
-            detail={
-              sourceCount > 0
-                ? `${sourceCount} fonte${sourceCount > 1 ? "s" : ""} da turma`
-                : attachmentCount > 0
-                  ? `${attachmentCount} anexo${attachmentCount > 1 ? "s" : ""}`
-                  : "pronto para anexos"
-            }
-            color="var(--success)"
-          />
-        </div>
+        <Link
+          href="/aluno/estudo"
+          className="border-primary-border bg-primary-soft text-primary hidden items-center gap-2 rounded-md border px-3 py-2 text-[12.5px] font-medium transition-colors hover:bg-surface-tint sm:inline-flex"
+        >
+          <Layers3 size={14} />
+          Estudo ativo
+        </Link>
       </div>
     </header>
-  );
-}
-
-function StatusPill({
-  icon: Icon,
-  label,
-  detail,
-  color,
-  live = false,
-}: {
-  icon: LucideIcon;
-  label: string;
-  detail: string;
-  color: string;
-  live?: boolean;
-}) {
-  return (
-    <div className="border-border bg-surface/80 flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2 shadow-[var(--shadow-xs)]">
-      <span
-        className="grid size-8 shrink-0 place-items-center rounded-md"
-        style={{
-          background: `color-mix(in srgb, ${color} 12%, #ffffff)`,
-          color,
-        }}
-      >
-        <Icon size={15} className={live ? "motion-safe:animate-pulse" : ""} />
-      </span>
-      <span className="min-w-0 leading-tight">
-        <span className="block truncate text-[12px] font-semibold">{label}</span>
-        <span className="text-text-faint block truncate text-[11px]">
-          {detail}
-        </span>
-      </span>
-    </div>
   );
 }
 

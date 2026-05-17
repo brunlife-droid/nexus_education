@@ -176,7 +176,7 @@ Convenção pra nova capability: 1) adicionar rota em `routes.ts` (fallback hard
 
 ### Chat multimodal do aluno
 - O contrato client → `/api/chat` agora envia `messages[]` com `attachments[]` estruturados (`image`, `audio`, `document`). O componente `ChatClient` só faz upload para `/api/upload`; análise acontece no servidor.
-- A UI do `ChatClient` funciona como uma mesa de estudo: header com status pedagógico, ações rápidas, composer multilinha, feedback de upload/resposta e fontes RAG em bloco próprio, sem mudar o contrato da API.
+- A UI do `ChatClient` funciona como uma mesa de estudo: header compacto da tutora, ações rápidas, composer multilinha, feedback de upload/resposta e fontes RAG em bloco próprio, sem mudar o contrato da API.
 - `src/lib/chat/multimodal.ts` prepara a última mensagem do aluno antes do gateway:
   - Imagem: baixa do Railway Bucket/S3 privado (ou data URL mock), converte para data URL até 7MB e envia ao AI SDK como parte `image`.
   - Áudio: baixa do storage privado e chama `POST /v1/audio/transcriptions` da OpenAI, com `OPENAI_TRANSCRIPTION_MODEL` opcional e fallback para `whisper-1`.
