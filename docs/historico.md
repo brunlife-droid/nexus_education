@@ -1,3 +1,14 @@
+## 28/09/2026 — Orientações dos agentes alinhadas e leitura por assunto
+
+Authorization: explicit-user-authorization
+Scope: implementation e publicação das orientações neste repositório, conforme pedido de Bruno para seus projetos.
+
+AGENTS.md e CLAUDE.md passam a conter exatamente as mesmas obrigações. O agente consulta uma cópia e busca somente o contexto relevante; identifica contratos e fluxos afetados, valida o resultado novo e os comportamentos existentes e faz uma revisão final. Repetições dependem de mudança, falha ou risco concreto. Permanecem as três sugestões de UX, layout e código ao concluir cada feature, para decisão posterior de Bruno.
+
+Preservados os contratos específicos do projeto, autorizações, proteção de dados e checks remotos. Documentação recebe validação focada; publicação de runtime continua seguindo o procedimento e os gates do projeto. Esta entrega não altera o aplicativo, schema ou dados. A disponibilização das orientações ocorre via PR na branch main; demais checkouts precisam ser atualizados.
+
+Verificações desta entrega: igualdade dos guias, referências, diff, preservação dos registros e ausência de segredos; JSON e sintaxe/saída dos hooks quando alterados. Histórico anterior preservado. O hook de início deixa de injetar documentos inteiros; mantém um lembrete curto, e o bloqueio documental de Stop foi removido.
+
 # Histórico
 
 > **Adicionar uma entrada nova no TOPO depois de qualquer mudança de código.** Foco no *porquê* e em consequências, não em detalhes triviais que o `git log` já tem.

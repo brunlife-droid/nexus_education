@@ -72,12 +72,11 @@ docs/                 # ROADMAP, contexto, arquitetura, histórico
 
 ## Continuidade entre sessões (hooks do Claude Code)
 
-Pra garantir que cada nova sessão de Claude nesse repo arranque com o contexto certo e termine deixando rastro, o `.claude/settings.json` define dois hooks:
+O `.claude/settings.json` define um lembrete de início de sessão:
 
-- **`SessionStart`** roda `.claude/hooks/inject-docs.sh` no início de toda sessão. O script lê `docs/{contexto,arquitetura,historico}.md` e devolve via `hookSpecificOutput.additionalContext` — o conteúdo entra no contexto do modelo como mensagem de sistema, antes do primeiro turno. Garante que ninguém esquece de ler os docs vivos.
-- **`Stop`** roda `.claude/hooks/check-historico.sh` quando o agente tenta parar. Se `git diff` mostrar mudanças em `src/`, `drizzle/migrations/` ou `package*.json` sem alteração em `docs/historico.md`, retorna `{"decision":"block",...}` e força o modelo a continuar trabalhando até atualizar o histórico.
+- **`SessionStart`** roda `.claude/hooks/inject-docs.sh` e apresenta um texto curto: usar uma das cópias idênticas de `AGENTS.md`/`CLAUDE.md`, consultar documentos por assunto, validar os fluxos afetados e manter as três sugestões. O script não injeta os documentos completos nem prepara dependências.
 
-O `CLAUDE.md` continua sendo a documentação humana do workflow; os hooks são o cinto de segurança técnico.
+O encerramento segue os critérios do guia compartilhado, com registro pertinente no histórico e uma revisão final. Não há bloqueio de Stop baseado em arquivos documentais modificados.
 
 ## Decisões arquiteturais ativas
 

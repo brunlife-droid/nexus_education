@@ -13,20 +13,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/inject-docs.sh",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/inject-docs.sh\"",
             "timeout": 10,
-            "statusMessage": "Injetando docs do projeto..."
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": ".claude/hooks/check-historico.sh",
-            "timeout": 10
+            "statusMessage": "Carregando orientação por assunto..."
           }
         ]
       }
