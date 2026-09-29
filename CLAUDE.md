@@ -1,10 +1,11 @@
 # nexus_education — orientações de trabalho
 
-Política vigente de 28/09/2026. AGENTS.md e CLAUDE.md têm conteúdo idêntico: consulte apenas um; se já estiver no contexto, use-o sem reler. Ao alterar estas regras, atualize as duas cópias e confira a igualdade. Esta política substitui as antigas exigências de leitura integral e revisões repetidas; os contratos do produto permanecem válidos.
+Política vigente de 29/09/2026. AGENTS.md e CLAUDE.md têm conteúdo idêntico: consulte apenas um; se já estiver no contexto, use-o sem reler. Ao alterar estas regras, atualize as duas cópias e confira a igualdade. Esta política substitui as antigas exigências de leitura integral e revisões repetidas; os contratos do produto permanecem válidos.
 
 ## Escopo e contexto
 
 - Confira branch, diff e arquivos envolvidos. Preserve o trabalho existente. Entenda o resultado pedido, o comportamento atual e como verificar a mudança; tarefa simples não exige plano formal.
+- Se o pedido for apenas de implementação local, conclua código, validação pertinente e documentação sem iniciar PR, deploy ou QA produtivo por inferência. Quando a publicação estiver no escopo, siga os gates do commit final da branch de destino.
 - Use busca por assunto antes de abrir documentos grandes. Leia somente os trechos que influenciam a tarefa e amplie a leitura quando encontrar uma dependência ou risco concreto. Histórico serve para localizar decisões; não precisa ser relido inteiro no início ou no fim.
 - Avalie o pedido com senso crítico. Pergunte somente por decisão de comportamento, escopo, risco, custo ou autorização que esteja faltando. Resolva escolhas técnicas rotineiras e preserve autorizações já dadas.
 - Antes de editar, identifique contratos, consumidores e fluxos afetados, especialmente código compartilhado, permissões, dados e integrações. Preserve comportamentos existentes fora do escopo.
@@ -21,7 +22,7 @@ Política vigente de 28/09/2026. AGENTS.md e CLAUDE.md têm conteúdo idêntico:
 
 - Plataforma pedagógica com Aluno, Professor, Secretaria e Admin Nexus. Preserve tenant_id, tenant resolvido por subdomínio e RLS. Toda query precisa do escopo de tenant nos helpers/middleware; RLS é a segunda barreira.
 - Ações sensíveis, acesso a dados de aluno, envio de mensagens e alertas SRE precisam de audit_log. Dados de menores exigem consentimento do responsável e proteção de PII.
-- WhatsApp é o canal principal do aluno; web é fallback. UI mobile-first deve funcionar em Android simples e rede 3G; valide com throttling quando o fluxo visual mudar.
+- WhatsApp é o canal principal do aluno; web é fallback. A UI mobile-first deve funcionar em Android simples e rede 3G. Preserve esse requisito ao implementar; validação manual dedicada em celular e com throttling ocorre quando Bruno pedir, sem suprimir cenários móveis obrigatórios no CI.
 - Use o gateway src/lib/llm/ para IA; nunca chame provedores diretamente de componentes. Preserve white-label por variáveis CSS semânticas e configuração do tenant.
 - Para código Next.js, consulte o guia pertinente da versão instalada em node_modules/next/dist/docs/ e seus avisos de depreciação. Não presuma APIs com base em versões anteriores.
 - Use pt-BR em UI, erros, commits e respostas; identificadores em inglês. Tom institucional, firme e respeitoso, adequado à idade. Commits descritivos no imperativo.
@@ -31,7 +32,9 @@ Política vigente de 28/09/2026. AGENTS.md e CLAUDE.md têm conteúdo idêntico:
 - Implemente a menor mudança completa que atende ao pedido. Diagnóstico ou revisão isolados permanecem em leitura. Melhorias paralelas só entram quando necessárias ao resultado autorizado.
 - Valide a funcionalidade nova e os comportamentos existentes afetados, incluindo erros e acesso quando pertinentes. Mudança visível precisa ser exercitada no navegador pelo fluxo real afetado.
 - Texto e orientações exigem conferir conteúdo, referências, igualdade dos dois guias, diff e ausência de segredos. Hook alterado exige sintaxe e comportamento verificados. Não instale dependências nem rode banco, build ou E2E do aplicativo só para editar documentos.
-- Use os scripts existentes de lint, testes e build pertinentes à mudança. Em acesso a dados, cubra RLS e auditoria; em UI, valide o fluxo no navegador e as condições móveis aplicáveis.
+- Use os scripts existentes de lint, testes e build pertinentes à mudança. Em acesso a dados, cubra RLS e auditoria; em UI, valide o fluxo no navegador e, quando solicitado, as condições móveis aplicáveis.
+- Durante a implementação, rode testes focados na mudança e nos fluxos afetados. Consolide um candidato estável antes da suíte completa de publicação; não repita toda a suíte a cada ajuste. Após corrigir um candidato, diagnostique com os testes afetados e execute novamente os gates exigidos no novo commit final.
+- Celular: não faça validação manual dedicada, capturas ou cenários móveis opcionais por padrão; execute-os quando Bruno pedir. Cenários responsivos já embutidos nos gates obrigatórios continuam sendo executados; nunca omita um passo e apresente o gate como completo.
 - Checks remotos e proteções exigidos pelo repositório continuam obrigatórios. Não publique sucesso fictício nem reutilize evidência de outro commit, e não contorne proteções. Falha de ambiente pede diagnóstico antes de repetir a suíte; preserve processos e portas usados por outros trabalhos.
 - Faça uma revisão final do diff. Após corrigir um achado, confira a correção e seus efeitos; nova auditoria completa exige alteração relevante, falha ou risco concreto ainda aberto. Quando pedido, revisão e gates aplicáveis estiverem atendidos, entregue.
 

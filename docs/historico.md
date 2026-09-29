@@ -1,3 +1,10 @@
+## 29/09/2026 — Validação focada e celular sob pedido
+
+Authorization: explicit-user-authorization
+Scope: atualização e publicação documental de AGENTS.md e CLAUDE.md; sem alteração do aplicativo, banco, executor de CI ou deploy.
+
+As duas instruções permanecem idênticas. Trabalho local usa testes focados e não inicia publicação por inferência; para publicar código, o candidato final segue os gates do próprio projeto. Verificação manual dedicada em celular, capturas e cenários móveis opcionais passam a ocorrer somente quando Bruno pedir. Os testes responsivos já embutidos nos gates obrigatórios continuam válidos. O requisito mobile-first e a proteção de menores permanecem; esta entrega não muda runtime nem a cobertura automática.
+
 ## 28/09/2026 — Orientações dos agentes alinhadas e leitura por assunto
 
 Authorization: explicit-user-authorization
