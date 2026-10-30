@@ -1,3 +1,12 @@
+## 30/10/2026 — Configuração do deploy sai do `railway.json`
+
+Authorization: explicit-user-authorization
+Scope: implementation e publicação autorizadas por Bruno; gravação dos campos no serviço de produção e PR que publica ao mesclar. Sem mudança de código, schema ou variável.
+
+A Railway deixa de ler `railway.json` em 01/12/2026, em corte duro. Build, pre-deploy, start e healthcheck passam a ficar no próprio serviço, com os mesmos valores, e o arquivo sai do repositório. A tabela está em `docs/arquitetura.md`. O `.railway/railway.ts` não foi adotado: ele não é lido no deploy e grava nos mesmos campos do serviço.
+
+A sequência do pre-deploy continua versionada em `npm run db:deploy`. Esse comando roda `drizzle-kit push --force`, e no deploy de 22/10, só de documentos, ele desligou o RLS das 18 tabelas e removeu políticas, índices e constraints que os SQL de `postpush` recolocam. Há janela sem RLS a cada deploy. Esta entrega não muda isso; a saída do arquivo foi publicada com a contagem de políticas conferida antes e depois.
+
 ## 29/09/2026 — Validação focada e celular sob pedido
 
 Authorization: explicit-user-authorization

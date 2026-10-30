@@ -40,7 +40,7 @@
 | Auth | NextAuth v5 (credenciais demo por enquanto) | `src/lib/auth/` |
 | LLM gateway | Vercel AI SDK + OpenRouter | `src/lib/llm/` |
 | Storage | Railway Bucket/S3 via abstração | `src/lib/storage/` |
-| Hosting | Vercel atual + Railway preparado em paralelo | `vercel.json`, `railway.json` |
+| Hosting | Vercel atual + Railway preparado em paralelo | `vercel.json`, serviço na Railway (ver Deploy Railway) |
 
 ## Estrutura de pastas
 
@@ -89,7 +89,19 @@ O encerramento segue os critérios do guia compartilhado, com registro pertinent
 - Campos derivados (`population`, `students`, `teachers`, `schools`) ainda vêm do overlay in-code até COUNT real existir.
 
 ### Deploy Railway
-- `railway.json` configura build com Railpack, pre-deploy command `npm run db:deploy`, start command `npm run start:railway`, healthcheck em `/api/health` e restart on failure.
+- A configuração de build e deploy fica no próprio serviço. O repositório não tem `railway.json`, porque a Railway deixa de ler esse arquivo em 01/12/2026.
+
+| Campo | Valor |
+| --- | --- |
+| Build | Railpack, `npm run build` |
+| Pre-deploy | `npm run db:deploy` |
+| Start | `npm run start:railway` |
+| Healthcheck | `/api/health`, 300 s |
+| Reinício | `ON_FAILURE`, 10 tentativas |
+
+- Esses valores não acompanham o código. Quem alterar um deles grava no serviço e atualiza esta tabela. No `serviceInstanceUpdate`, passe sempre `environmentId`. A gravação não publica; o valor vale a partir do próximo deploy.
+- Em serviço novo, grave os campos antes do primeiro deploy: sem eles o deploy pode terminar em `SUCCESS` sem migrations e sem healthcheck.
+- Para saber se um deploy leu arquivo, consulte `meta.configFile` do deployment.
 - O healthcheck de Railway aponta para `/api/health`, que apenas confirma que o servidor Next respondeu; smoke tests de DB/LLM continuam separados.
 - `npm run start:railway` sobe Next em `0.0.0.0` usando `$PORT`, que é o contrato esperado em ambientes containerizados.
 - `src/lib/db/client.ts` usa `pg` + `drizzle-orm/node-postgres`, não mais o driver específico do Neon. SSL é ativado por `DATABASE_SSL=true`, `sslmode=require` ou host Neon; Railway Postgres privado pode rodar sem SSL quando `DATABASE_SSL=false`.

@@ -46,7 +46,7 @@
   - Validação end-to-end: subir material real, conversar com a tutora pra confirmar que ela usa o trecho RAG.
 - **Migração Railway em paralelo**:
   - Repositório GitHub conectado no projeto Railway `dynamic-essence` / ambiente `production`.
-  - `railway.json` define build, pre-deploy migrations e start command para Railway.
+  - Build, pre-deploy migrations e start command ficam no próprio serviço Railway (tabela em `docs/arquitetura.md`).
   - Cliente Drizzle migrou para `pg`/Node Postgres, compatível com Railway Postgres e ainda compatível com Neon via `sslmode=require`/`DATABASE_SSL=true`.
   - Script `npm run db:deploy` roda `0000_prepare_pgvector_and_rls.sql`, `drizzle-kit push --force` e depois aplica SQL pós-schema (`0001`, `0002`, `0003`, `9999`) de forma idempotente.
   - Railway já tem PostgreSQL, `DATABASE_URL`, `DATABASE_SSL=false`, chaves de IA/Auth, domínio público e bucket S3 ligados ao serviço `nexus_education`. Deploy `7b05b70` ficou ativo; smoke test validou home, login professor, `/api/llm-health`, upload/processamento de material e análise de documento no chat do aluno.
